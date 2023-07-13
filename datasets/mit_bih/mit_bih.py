@@ -1,3 +1,4 @@
+import copy
 import multiprocessing
 import os
 import pickle
@@ -22,12 +23,16 @@ class MITBIHDataset(BaseDataset):
         data_prefix=None,
         token_size=4,
         data_size=32500,
+        signal_names=["MLII", "V1", "V2", "V4", "V5"],
         ecg_process_method="dwt",
         ecg_wave_kinds="PRT",
         **kwargs,
     ):
         self.token_size = token_size
         self.data_size = ceil(data_size / token_size)
+        self.signal_names = {
+            signal_name: i for i, signal_name in enumerate(signal_names)
+        }
         self.ecg_process_method = ecg_process_method
         self.ecg_wave_kinds = ecg_wave_kinds
 
@@ -60,94 +65,21 @@ class MITBIHDataset(BaseDataset):
 
         data_list = []
         for name in name_list:
-            record = load_record(self.data_prefix["data_path"], name)
-            ann = load_ann(self.data_prefix["ann_path"], name)
-            wave_ann = pickle.load(
-                open(
-                    os.path.join(self.data_prefix["cache_path"], name + ".pkl"),
-                    "rb",
-                )
-            )
-
-            signal = torch.tensor(record.p_signal).T
-            signal = signal.reshape(*signal.shape[:-1], -1, self.token_size)
-
-            wave_embedding = signal.new_zeros(
-                (*signal.shape[:2], len(self.ecg_wave_kinds))
-            )
-            for sig_index, sig_name in enumerate(record.sig_name):
-                for wave_index, wave_name in enumerate(self.ecg_wave_kinds):
-                    on_sets = (
-                        np.array(wave_ann[sig_name][f"ECG_{wave_name}_Onsets"])
-                        / self.token_size
-                    )
-                    off_sets = (
-                        np.array(wave_ann[sig_name][f"ECG_{wave_name}_Offsets"])
-                        / self.token_size
-                    )
-                    for i in range(len(on_sets)):
-                        if not isnan(on_sets[i]) and not isnan(off_sets[i]):
-                            start_percent, start_token = modf(on_sets[i])
-                            end_percent, end_token = modf(off_sets[i])
-                            start_token = int(start_token)
-                            end_token = int(end_token)
-
-                            if start_token == end_token:
-                                wave_embedding[sig_index, start_token, wave_index] = (
-                                    end_percent - start_percent
-                                )
-                            else:
-                                wave_embedding[sig_index, start_token, wave_index] = (
-                                    1 - start_percent
-                                )
-                                wave_embedding[
-                                    sig_index,
-                                    start_token + 1 : end_token,
-                                    wave_index,
-                                ] = 1
-                                wave_embedding[
-                                    sig_index, end_token, wave_index
-                                ] = end_percent
-
-            symbols = {
-                int(i / self.token_size): symbol
-                for i, symbol in enumerate(ann.symbol)
-                if symbol not in "N"
-            }
-            aux_note = {
-                int(i / self.token_size): aux_note
-                for i, aux_note in enumerate(ann.aux_note)
-                if aux_note
-            }
-
-            start_data_index = 0
-            while start_data_index < signal.shape[1]:
-                end_data_index = min(start_data_index + self.data_size, signal.shape[1])
-
-                data_list.append(
-                    {
-                        "name": name,
-                        "signal": signal[:, start_data_index:end_data_index, ...],
-                        "signal_name": record.sig_name,
-                        "wave_embedding": wave_embedding[
-                            :, start_data_index:end_data_index, ...
-                        ],
-                        "symbols": {
-                            key - start_data_index: value
-                            for key, value in symbols.items()
-                            if start_data_index <= key < end_data_index
-                        },
-                        "aux_note": {
-                            key - start_data_index: value
-                            for key, value in aux_note.items()
-                            if start_data_index <= key < end_data_index
-                        },
-                    }
-                )
-
-                start_data_index += ceil(self.data_size / 2)
+            data_list.extend(self.calculate_data(name))
 
         return data_list
+
+    @staticmethod
+    def collate_fn(batch):
+        collate_fn_map = copy.deepcopy(
+            torch.utils.data._utils.collate.default_collate_fn_map
+        )
+
+        collate_fn_map[list] = lambda batch, collate_fn_map: batch
+
+        return torch.utils.data._utils.collate.collate(
+            batch, collate_fn_map=collate_fn_map
+        )
 
     @staticmethod
     def cache_wave_ann(data_list, data_path, cache_path, num_processes=2, **kwargs):
@@ -179,3 +111,100 @@ class MITBIHDataset(BaseDataset):
 
         pool.close()
         pool.join()
+
+    def calculate_data(self, name):
+        record = load_record(self.data_prefix["data_path"], name)
+        ann = load_ann(self.data_prefix["ann_path"], name)
+        wave_ann = pickle.load(
+            open(
+                os.path.join(self.data_prefix["cache_path"], name + ".pkl"),
+                "rb",
+            )
+        )
+
+        signal = torch.tensor(record.p_signal, dtype=torch.float32).T
+        signal = signal.reshape(*signal.shape[:-1], -1, self.token_size)
+
+        signal_embedding = signal.new_zeros((signal.shape[0],), dtype=torch.long)
+        wave_embedding = signal.new_zeros((*signal.shape[:2], len(self.ecg_wave_kinds)))
+        for sig_index, sig_name in enumerate(record.sig_name):
+            signal_embedding[sig_index] = self.signal_names[sig_name]
+            for wave_index, wave_name in enumerate(self.ecg_wave_kinds):
+                on_sets = (
+                    np.array(wave_ann[sig_name][f"ECG_{wave_name}_Onsets"])
+                    / self.token_size
+                )
+                off_sets = (
+                    np.array(wave_ann[sig_name][f"ECG_{wave_name}_Offsets"])
+                    / self.token_size
+                )
+                for i in range(len(on_sets)):
+                    if not isnan(on_sets[i]) and not isnan(off_sets[i]):
+                        start_percent, start_token = modf(on_sets[i])
+                        end_percent, end_token = modf(off_sets[i])
+                        start_token = int(start_token)
+                        end_token = int(end_token)
+
+                        if start_token == end_token:
+                            wave_embedding[sig_index, start_token, wave_index] = (
+                                end_percent - start_percent
+                            )
+                        else:
+                            wave_embedding[sig_index, start_token, wave_index] = (
+                                1 - start_percent
+                            )
+                            wave_embedding[
+                                sig_index,
+                                start_token + 1 : end_token,
+                                wave_index,
+                            ] = 1
+                            wave_embedding[
+                                sig_index, end_token, wave_index
+                            ] = end_percent
+
+        symbols = {
+            int(i / self.token_size): symbol
+            for i, symbol in enumerate(ann.symbol)
+            if symbol not in "N"
+        }
+        aux_note = {
+            int(i / self.token_size): aux_note
+            for i, aux_note in enumerate(ann.aux_note)
+            if aux_note
+        }
+
+        data_list = []
+        end_data_index = min(self.data_size, signal.shape[1])
+        while end_data_index <= signal.shape[1]:
+            start_data_index = max(0, end_data_index - self.data_size)
+
+            cur_symbols = [
+                (key - start_data_index, value)
+                for key, value in symbols.items()
+                if start_data_index <= key < end_data_index
+            ]
+
+            cur_aux_note = [
+                (key - start_data_index, value)
+                for key, value in aux_note.items()
+                if start_data_index <= key < end_data_index
+            ]
+
+            if len(cur_symbols) + len(cur_aux_note) > 0:
+                data_list.append(
+                    {
+                        "name": name,
+                        "signal": signal[:, start_data_index:end_data_index, ...],
+                        "signal_name": record.sig_name,
+                        "signal_embedding": signal_embedding,
+                        "wave_embedding": wave_embedding[
+                            :, start_data_index:end_data_index, ...
+                        ],
+                        "symbols": cur_symbols,
+                        "aux_note": cur_aux_note,
+                    }
+                )
+
+            end_data_index += ceil(self.data_size / 2)
+
+        return data_list

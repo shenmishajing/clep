@@ -1,0 +1,20 @@
+model:
+    class_path: lightning_template.LightningModule
+    init_args:
+        model:
+            class_path: models.CLEP
+            init_args:
+                ecg_encoder:
+                    class_path: torch.nn.TransformerEncoder
+                    init_args:
+                        encoder_layer:
+                            class_path: torch.nn.TransformerEncoderLayer
+                            init_args:
+                                d_model: 768
+                                nhead: 12
+                                activation: relu
+                        num_layers: 6
+                token_size: 4
+                wave_kind_num: 3
+                singla_kind_num: 5
+                embedding_dim: 768

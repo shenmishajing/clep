@@ -1,0 +1,25 @@
+data:
+    class_path: lightning_template.LightningDataModule
+    init_args:
+        dataset_cfg:
+            split_info:
+                split_format_to: [ann_file]
+                split_name_map:
+                    val: val
+                    test: val
+                    predict: val
+            train:
+                class_path: datasets.MITBIHDataset
+                init_args:
+                    ann_file: ${split}.txt
+                    data_root: data/mit-bih-arrhythmia-database-1.0.0
+                    ecg_process_method: dwt
+        dataloader_cfg:
+            train:
+                batch_size: 128
+                num_workers: 8
+                prefetch_factor: 2
+                pin_memory: true
+                persistent_workers: true
+            val:
+                batch_size: 128

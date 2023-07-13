@@ -38,7 +38,7 @@ def main():
                 for i in range(cur_channel_num):
                     channels.add(lines[1 + i].split()[-1])
     print(f"channel_num: {channel_num}, fps: {fps}, total_num: {total_num}")
-    print(f"channels: {channels}")
+    print(f"channels: {sorted(channels)}")
 
 
 if __name__ == "__main__":

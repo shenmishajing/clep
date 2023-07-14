@@ -9,6 +9,7 @@ import torch
 import tqdm
 from mmengine.dataset import BaseDataset
 from mmengine.fileio import list_from_file
+from torch.utils.data._utils.collate import collate, default_collate_fn_map
 
 from .ecg_utils import load_ann, load_record, load_wave_ann
 
@@ -71,15 +72,10 @@ class MITBIHDataset(BaseDataset):
 
     @staticmethod
     def collate_fn(batch):
-        collate_fn_map = copy.deepcopy(
-            torch.utils.data._utils.collate.default_collate_fn_map
-        )
-
+        collate_fn_map = copy.copy(default_collate_fn_map)
         collate_fn_map[list] = lambda batch, collate_fn_map: batch
 
-        return torch.utils.data._utils.collate.collate(
-            batch, collate_fn_map=collate_fn_map
-        )
+        return collate(batch, collate_fn_map=collate_fn_map)
 
     @staticmethod
     def cache_wave_ann(data_list, data_path, cache_path, num_processes=2, **kwargs):

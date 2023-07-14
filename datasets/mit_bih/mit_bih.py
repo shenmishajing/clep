@@ -161,7 +161,6 @@ class MITBIHDataset(BaseDataset):
         symbols = {
             int(i / self.token_size): symbol
             for i, symbol in zip(ann.sample, ann.symbol)
-            if symbol not in "N"
         }
         aux_note = {
             int(i / self.token_size): aux_note

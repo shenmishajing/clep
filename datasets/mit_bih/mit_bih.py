@@ -185,19 +185,24 @@ class MITBIHDataset(BaseDataset):
                 if start_data_index <= key < end_data_index
             ]
 
-            data_list.append(
-                {
-                    "name": name,
-                    "signal": signal[:, start_data_index:end_data_index, ...],
-                    "signal_name": record.sig_name,
-                    "signal_embedding": signal_embedding,
-                    "wave_embedding": wave_embedding[
-                        :, start_data_index:end_data_index, ...
-                    ],
-                    "symbol_target": symbol_target[:, start_data_index:end_data_index],
-                    "aux_note": cur_aux_note,
-                }
-            )
+            cur_symbol_target = symbol_target[:, start_data_index:end_data_index]
+
+            if (cur_symbol_target >= 0).sum() > 0:
+                data_list.append(
+                    {
+                        "name": name,
+                        "signal": signal[:, start_data_index:end_data_index, ...],
+                        "signal_name": record.sig_name,
+                        "signal_embedding": signal_embedding,
+                        "wave_embedding": wave_embedding[
+                            :, start_data_index:end_data_index, ...
+                        ],
+                        "symbol_target": symbol_target[
+                            :, start_data_index:end_data_index
+                        ],
+                        "aux_note": cur_aux_note,
+                    }
+                )
 
             end_data_index += ceil(self.data_size / 2)
 

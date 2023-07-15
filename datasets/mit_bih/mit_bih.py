@@ -25,6 +25,7 @@ class MITBIHDataset(BaseDataset):
         token_size=4,
         data_size=32500,
         signal_names=["MLII", "V1", "V2", "V4", "V5"],
+        symbol_names=["N", "L", "R", "V", "A"],
         ecg_process_method="dwt",
         ecg_wave_kinds="PRT",
         **kwargs,
@@ -33,6 +34,9 @@ class MITBIHDataset(BaseDataset):
         self.data_size = ceil(data_size / token_size)
         self.signal_names = {
             signal_name: i for i, signal_name in enumerate(signal_names)
+        }
+        self.symbol_names = {
+            symbol_name: i for i, symbol_name in enumerate(symbol_names)
         }
         self.ecg_process_method = ecg_process_method
         self.ecg_wave_kinds = ecg_wave_kinds
@@ -158,12 +162,14 @@ class MITBIHDataset(BaseDataset):
                                 sig_index, end_token, wave_index
                             ] = end_percent
 
-        symbols = {
-            int(i / self.token_size): symbol
-            for i, symbol in zip(ann.sample, ann.symbol)
-        }
+        symbol_target = signal.new_full((1, signal.shape[1]), -1, dtype=torch.long)
+
+        for i, symbol in zip(ann.sample, ann.symbol):
+            if symbol in self.symbol_names:
+                symbol_target[0, int(i / self.token_size)] = self.symbol_names[symbol]
+
         aux_note = {
-            int(i / self.token_size): aux_note
+            int(i / self.token_size): aux_note.rstrip("\x00")
             for i, aux_note in zip(ann.sample, ann.aux_note)
             if aux_note
         }
@@ -173,32 +179,25 @@ class MITBIHDataset(BaseDataset):
         while end_data_index <= signal.shape[1]:
             start_data_index = max(0, end_data_index - self.data_size)
 
-            cur_symbols = [
-                (key - start_data_index, value)
-                for key, value in symbols.items()
-                if start_data_index <= key < end_data_index
-            ]
-
             cur_aux_note = [
                 (key - start_data_index, value)
                 for key, value in aux_note.items()
                 if start_data_index <= key < end_data_index
             ]
 
-            if len(cur_symbols) + len(cur_aux_note) > 0:
-                data_list.append(
-                    {
-                        "name": name,
-                        "signal": signal[:, start_data_index:end_data_index, ...],
-                        "signal_name": record.sig_name,
-                        "signal_embedding": signal_embedding,
-                        "wave_embedding": wave_embedding[
-                            :, start_data_index:end_data_index, ...
-                        ],
-                        "symbols": cur_symbols,
-                        "aux_note": cur_aux_note,
-                    }
-                )
+            data_list.append(
+                {
+                    "name": name,
+                    "signal": signal[:, start_data_index:end_data_index, ...],
+                    "signal_name": record.sig_name,
+                    "signal_embedding": signal_embedding,
+                    "wave_embedding": wave_embedding[
+                        :, start_data_index:end_data_index, ...
+                    ],
+                    "symbol_target": symbol_target[:, start_data_index:end_data_index],
+                    "aux_note": cur_aux_note,
+                }
+            )
 
             end_data_index += ceil(self.data_size / 2)
 

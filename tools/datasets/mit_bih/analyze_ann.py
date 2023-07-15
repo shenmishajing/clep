@@ -19,10 +19,14 @@ def main():
             symbols[symbol] += 1
 
         for note in ann.aux_note:
-            aux_note[note] += 1
+            aux_note[note.rstrip("\x00")] += 1
 
-    print(f"symbols: {symbols}, len: {len(symbols)}")
-    print(f"aux_note: {aux_note}, len: {len(aux_note)}")
+    print(
+        f"symbols: {sorted([(k,v) for k,v in symbols.items()], key=lambda x:x[1], reverse=True)}, len: {len(symbols)}"
+    )
+    print(
+        f"aux_note: {sorted([(k,v) for k,v in aux_note.items()], key=lambda x:x[1], reverse=True)}, len: {len(aux_note)}"
+    )
 
 
 if __name__ == "__main__":

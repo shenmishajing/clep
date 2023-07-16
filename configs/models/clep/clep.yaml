@@ -12,7 +12,6 @@ model:
                             init_args:
                                 d_model: 768
                                 nhead: 12
-                                activation: relu
                         num_layers: 6
                 token_size: 4
                 wave_kind_num: 3

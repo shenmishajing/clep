@@ -16,7 +16,7 @@ trainer:
               save_best: true
               mode: min
               auto_insert_metric_name: false
-        - class_path: lightning_template.utils.progress.rich_progress.RichDefaultThemeProgressBar
+        - class_path: lightning_template.utils.progress.rich_progress.RichProgressBar
           init_args:
               show_version: false
               show_eta_time: true

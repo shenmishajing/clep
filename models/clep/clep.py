@@ -8,17 +8,25 @@ class CLEP(nn.Module):
         ecg_encoder: nn.Module,
         token_size: int,
         wave_kind_num=3,
-        singla_kind_num=5,
+        signal_kind_num=5,
         symbol_kind_num=5,
         embedding_dim=512,
     ):
         super().__init__()
 
+        self.token_size = token_size
+        self.wave_kind_num = wave_kind_num
+        self.signal_kind_num = signal_kind_num
+        self.symbol_kind_num = symbol_kind_num
+        self.embedding_dim = embedding_dim
+
         self.ecg_encoder = ecg_encoder
         self.token_embedding = nn.Linear(token_size, embedding_dim)
         self.wave_embedding = nn.Linear(wave_kind_num, embedding_dim)
-        self.signal_embedding = nn.Embedding(singla_kind_num, embedding_dim)
-        self.symbol_embedding = nn.Embedding(symbol_kind_num, embedding_dim)
+        self.signal_embedding = nn.Embedding(signal_kind_num, embedding_dim)
+        self.symbol_embedding = nn.Embedding(
+            symbol_kind_num, wave_kind_num * embedding_dim
+        )
 
     def forward(self, data):
         x = self.token_embedding(data["signal"])

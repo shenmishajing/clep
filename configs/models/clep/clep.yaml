@@ -16,5 +16,5 @@ model:
                         num_layers: 6
                 token_size: 4
                 wave_kind_num: 3
-                singla_kind_num: 5
+                signal_kind_num: 5
                 embedding_dim: 768

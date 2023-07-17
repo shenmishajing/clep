@@ -12,6 +12,7 @@ model:
                             init_args:
                                 d_model: 768
                                 nhead: 12
+                                batch_first: true
                         num_layers: 6
                 token_size: 4
                 wave_kind_num: 3

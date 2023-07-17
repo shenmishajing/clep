@@ -61,7 +61,7 @@ class CLEP(nn.Module):
         x = F.normalize(x, dim=-1)
 
         pred = x.matmul(
-            other=F.normalize(self.symbol_embedding.weight.T, dim=-1)
+            other=F.normalize(self.symbol_embedding.weight.mT, dim=-1)
         ).argmax(dim=-1)
         acc = (pred == data["symbol_target"][:, None]).float().mean()
 
@@ -69,5 +69,5 @@ class CLEP(nn.Module):
             self.symbol_embedding(data["symbol_target"]), dim=-1
         )[:, None]
 
-        symbol_loss = 1 - (x * symbol_target).sum(dim=-1).mean()
+        symbol_loss = 1 - x.matmul(symbol_target.mT).mean()
         return {"loss": symbol_loss, "acc": acc}

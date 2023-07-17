@@ -69,5 +69,5 @@ class CLEP(nn.Module):
             self.symbol_embedding(data["symbol_target"]), dim=-1
         )[:, None]
 
-        symbol_loss = 1 - (x * symbol_target).sum(dim=-1).abs().mean()
+        symbol_loss = 1 - (x * symbol_target).sum(dim=-1).mean()
         return {"loss": symbol_loss, "acc": acc}

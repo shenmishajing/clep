@@ -13,6 +13,8 @@ class CLEP(nn.Module):
         signal_kind_num=5,
         symbol_kind_num=5,
         embedding_dim=512,
+        symbol_loss: nn.Module = nn.CrossEntropyLoss(),
+        normalize_loss: bool = True,
     ):
         super().__init__()
 
@@ -26,15 +28,19 @@ class CLEP(nn.Module):
         self.token_embedding = nn.Linear(token_size, embedding_dim)
         self.wave_embedding = nn.Linear(wave_kind_num, embedding_dim)
         self.signal_embedding = nn.Embedding(signal_kind_num, embedding_dim)
-        self.symbol_embedding = nn.Embedding(
-            symbol_kind_num, wave_kind_num * embedding_dim
-        )
 
+        self.symbol_embedding = nn.Parameter(
+            torch.empty(symbol_kind_num, wave_kind_num * embedding_dim)
+        )
         self.cls_tokens = nn.Parameter(torch.empty(wave_kind_num, embedding_dim))
+
+        self.symbol_loss = symbol_loss
+        self.normalize_loss = normalize_loss
 
         self._reset_parameters()
 
     def _reset_parameters(self):
+        xavier_uniform_(self.symbol_embedding)
         xavier_uniform_(self.cls_tokens)
 
     def forward(self, data):
@@ -58,16 +64,18 @@ class CLEP(nn.Module):
             .reshape(-1, *data["attention_mask"].shape[-2:]),
         )[:, : self.wave_kind_num].reshape(*x.shape[:2], -1)
 
-        x = F.normalize(x, dim=-1)
+        symbol_embedding = self.symbol_embedding
+        if self.normalize_loss:
+            x = F.normalize(x, dim=-1)
+            symbol_embedding = F.normalize(symbol_embedding, dim=-1)
 
-        pred = x.matmul(
-            other=F.normalize(self.symbol_embedding.weight.mT, dim=-1)
-        ).argmax(dim=-1)
-        acc = (pred == data["symbol_target"][:, None]).float().mean()
+        pred = x.matmul(symbol_embedding.mT) + 1
+        if isinstance(self.symbol_loss, nn.NLLLoss):
+            pred = pred / pred.sum(dim=-1, keepdim=True)
 
-        symbol_target = F.normalize(
-            self.symbol_embedding(data["symbol_target"]), dim=-1
-        )[:, None]
+        symbol_target = data["symbol_target"][:, None].expand(-1, x.shape[1])
 
-        symbol_loss = 1 - x.matmul(symbol_target.mT).mean()
+        acc = (pred.argmax(dim=-1) == symbol_target).float().mean()
+
+        symbol_loss = 1 + self.symbol_loss(pred.mT, symbol_target)
         return {"loss": symbol_loss, "acc": acc}

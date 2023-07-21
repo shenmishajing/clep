@@ -1,0 +1,35 @@
+model:
+    init_args:
+        evaluator_cfg:
+            class_path: torchmetrics.MetricCollection
+            init_args:
+                metrics:
+                    acc:
+                        class_path: torchmetrics.Accuracy
+                        init_args:
+                            task: multiclass
+                            num_classes: 5
+                    F1:
+                        class_path: torchmetrics.F1Score
+                        init_args:
+                            task: multiclass
+                            num_classes: 5
+                    PR-AUC:
+                        class_path: torchmetrics.AveragePrecision
+                        init_args:
+                            task: multiclass
+                            num_classes: 5
+                    ROC-AUC:
+                        class_path: torchmetrics.AUROC
+                        init_args:
+                            task: multiclass
+                            num_classes: 5
+
+trainer:
+    callbacks:
+        change_item:
+            - - 0
+              - init_args:
+                    monitor: val/acc
+                    filename: "epoch:{epoch}-val_acc:{val/acc:.4g}-val_f1:{val/F1:.4g}-val_pr_auc:{val/PR-AUC:.4g}-val_roc_auc:{val/ROC-AUC:.4g}.ckpt"
+                    mode: max

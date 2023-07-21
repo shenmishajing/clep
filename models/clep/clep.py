@@ -69,13 +69,11 @@ class CLEP(nn.Module):
             x = F.normalize(x, dim=-1)
             symbol_embedding = F.normalize(symbol_embedding, dim=-1)
 
-        pred = x.matmul(symbol_embedding.mT) + 1
+        pred = (x.matmul(symbol_embedding.mT) + 1).mT
         if isinstance(self.symbol_loss, nn.NLLLoss):
-            pred = pred / pred.sum(dim=-1, keepdim=True)
+            pred = pred / pred.sum(dim=1, keepdim=True)
 
-        symbol_target = data["symbol_target"][:, None].expand(-1, x.shape[1])
+        target = data["symbol_target"][:, None].expand(-1, x.shape[1])
 
-        acc = (pred.argmax(dim=-1) == symbol_target).float().mean()
-
-        symbol_loss = 1 + self.symbol_loss(pred.mT, symbol_target)
-        return {"loss": symbol_loss, "acc": acc}
+        loss = 1 + self.symbol_loss(pred, target)
+        return {"log_dict": {"loss": loss}, "pred": pred, "target": target}

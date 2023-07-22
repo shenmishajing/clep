@@ -18,3 +18,5 @@ model:
                 wave_kind_num: 3
                 signal_kind_num: 5
                 embedding_dim: 768
+                symbol_embedding_dim: 1536
+                symbol_embedding_path: data/mit-bih-arrhythmia-database-1.0.0/symbols/symbol_embedding.pkl

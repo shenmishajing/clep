@@ -56,17 +56,13 @@ class MITBIHDataset(BaseDataset):
         self.cache_info = OrderedDict()
         self.cache_info["wave_ann"] = {
             "path": self.ecg_process_method,
-            "suffix": ".pkl",
             "kwargs": {
                 "method": self.ecg_process_method,
                 "data_path": self.data_prefix["data_path"],
             },
         }
-        self.parse_cache_info()
-
         self.cache_info["wave_ann_filted"] = {
             "path": f"around_period_num_{self.around_period_num}",
-            "suffix": ".pkl",
             "kwargs": {
                 "ann_path": self.data_prefix["ann_path"],
                 "wave_ann_path": self.cache_info["wave_ann"]["path"],
@@ -75,6 +71,9 @@ class MITBIHDataset(BaseDataset):
             },
         }
         self.parse_cache_info()
+        self.cache_info["wave_ann_filted"]["kwargs"]["wave_ann_path"] = self.cache_info[
+            "wave_ann"
+        ]["path"]
 
         self.full_init()
 
@@ -88,6 +87,9 @@ class MITBIHDataset(BaseDataset):
                 cache_info["path"] = os.path.join(cache_path, cache_info["path"])
             else:
                 cache_info["path"] = cache_path
+
+            if "suffix" not in cache_info:
+                cache_info["suffix"] = "pkl"
 
             if "func" not in cache_info:
                 cache_info["func"] = self.cache_func
@@ -124,7 +126,7 @@ class MITBIHDataset(BaseDataset):
         for name in name_list:
             for info in self.cache_info.values():
                 if not os.path.exists(
-                    os.path.join(info["path"], name) + info["suffix"]
+                    os.path.join(info["path"], name) + "." + info["suffix"]
                 ):
                     info["uncached"].append(name)
 

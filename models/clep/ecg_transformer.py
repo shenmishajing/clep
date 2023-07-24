@@ -34,7 +34,7 @@ class ECGTransformer(nn.Module):
 
         self.cls_tokens = nn.Parameter(torch.empty(wave_kind_num, embedding_dim))
 
-        self.fc = nn.Linear(4 * embedding_dim, num_classes)
+        self.fc = nn.Linear(4 * wave_kind_num * embedding_dim, num_classes)
 
         if multi_label:
             self.loss = nn.BCELoss()
@@ -72,26 +72,21 @@ class ECGTransformer(nn.Module):
 
         return x
 
-    def transformer_forward(
-        self,
-        data,
-    ):
-        x = self.embedding(data)
+    def transformer_forward(self, x, attention_mask):
         return self.ecg_encoder(
             x.reshape(-1, *x.shape[-2:]),
-            data["attention_mask"][:, None, None, ...]
+            attention_mask[:, None, None, ...]
             .expand(
-                -1,
-                x.shape[1],
-                self.ecg_encoder.layers[0].self_attn.num_heads,
-                -1,
-                -1,
+                -1, x.shape[1], self.ecg_encoder.layers[0].self_attn.num_heads, -1, -1
             )
-            .reshape(-1, *data["attention_mask"].shape[-2:]),
-        )[:, : self.wave_kind_num].reshape(*x.shape[:2], -1)
+            .reshape(-1, *attention_mask.shape[-2:]),
+        )
 
     def forward(self, data):
-        x = self.transformer_forward(data)
+        x = self.embedding(data)
+        x = self.transformer_forward(x, data["attention_mask"])[
+            :, : self.wave_kind_num
+        ].reshape(*x.shape[:2], -1)
 
         pred = self.fc(x)
 

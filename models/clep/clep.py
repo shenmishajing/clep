@@ -26,7 +26,10 @@ class CLEP(ECGTransformer):
         self.fc = nn.Linear(4 * self.embedding_dim, symbol_embedding_dim)
 
     def forward(self, data):
-        x = self.fc(self.transformer_forward(data))
+        x = self.embedding(data)
+        x = self.fc(
+            self.transformer_forward(x, data["attention_mask"])[:, : self.wave_kind_num]
+        ).reshape(*x.shape[:2], -1)
 
         symbol_embedding = []
         for signals in data["signal_name"]:

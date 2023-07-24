@@ -10,13 +10,13 @@ model:
                         encoder_layer:
                             class_path: torch.nn.TransformerEncoderLayer
                             init_args:
-                                d_model: 768
-                                nhead: 12
+                                d_model: 128
+                                nhead: 16
                                 batch_first: true
-                        num_layers: 6
+                        num_layers: 2
                 token_size: 4
                 wave_kind_num: 3
                 signal_kind_num: 5
-                embedding_dim: 768
+                embedding_dim: 32
                 symbol_embedding_dim: 1536
                 symbol_embedding_path: data/mit-bih-arrhythmia-database-1.0.0/symbols/symbol_embedding.pkl

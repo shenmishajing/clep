@@ -4,7 +4,9 @@ import os
 import pickle
 from collections import OrderedDict, defaultdict
 from math import ceil, modf
+from queue import Queue
 
+import numpy as np
 import psutil
 import torch
 import tqdm
@@ -13,7 +15,6 @@ from mmengine.fileio import list_from_file
 from torch.utils.data._utils.collate import collate, default_collate_fn_map
 
 from .ecg_utils import load_ann, load_record, load_wave_ann
-from .wave_utils import find_index
 
 
 class MITBIHDataset(BaseDataset):
@@ -21,32 +22,49 @@ class MITBIHDataset(BaseDataset):
     MIT-BIH Arrhythmia dataset.
     """
 
+    SymbolClasses = "NLRAV"
+    SymbolClassNum = len(SymbolClasses)
+    SymbolClassToIndex = {name: i for i, name in enumerate(SymbolClasses)}
+
+    SymbolSuperClasses = OrderedDict(
+        [("N", "NLRej"), ("SVEB", "AaJS"), ("VEB", "VE"), ("F", "F"), ("Q", "Qf")]
+    )
+    SymbolSuperClassesNum = len(SymbolSuperClasses)
+    SymbolSuperClassToIndex = {name: i for i, name in enumerate(SymbolSuperClasses)}
+
+    SymbolClassToSuperClassIndex = defaultdict(
+        lambda: MITBIHDataset.SymbolSuperClassToIndex["Q"]
+    )
+
+    for i, (s, name) in enumerate(SymbolSuperClasses.items()):
+        for n in name:
+            SymbolClassToSuperClassIndex[n] = i
+
+    ECGWaves = "PRT"
+    ECGWaveToIndex = {name: i for i, name in enumerate(ECGWaves)}
+    ECGWaveNum = len(ECGWaves)
+
     def __init__(
         self,
         data_prefix=None,
         token_size=4,
         data_size=512,
         around_period_num=1,
+        symbol_super_class=False,
         signal_names=["MLII", "V1", "V2", "V4", "V5"],
-        symbol_names=["N", "L", "R", "V", "A"],
         ecg_process_method="dwt",
-        ecg_wave_kinds="PRT",
         **kwargs,
     ):
         self.token_size = token_size
         self.data_size = data_size
         self.around_period_num = around_period_num
         self.period_num = around_period_num * 2 + 1
+        self.symbol_super_class = symbol_super_class
         self.signal_names = {
             signal_name: i for i, signal_name in enumerate(signal_names)
         }
-        self.symbol_names = {
-            symbol_name: i for i, symbol_name in enumerate(symbol_names)
-        }
         self.ecg_process_method = ecg_process_method
-        self.ecg_wave_kinds = ecg_wave_kinds
-        self.cls_token_size = len(self.ecg_wave_kinds)
-        self.total_size = self.cls_token_size + self.data_size
+        self.total_size = self.ECGWaveNum + self.data_size
 
         if data_prefix is None:
             data_prefix = dict(data_path="", ann_path="", cache_path="cache")
@@ -66,7 +84,6 @@ class MITBIHDataset(BaseDataset):
             "kwargs": {
                 "ann_path": self.data_prefix["ann_path"],
                 "wave_ann_path": self.cache_info["wave_ann"]["path"],
-                "symbol_names": self.symbol_names,
                 "around_period_num": self.around_period_num,
             },
         }
@@ -146,81 +163,112 @@ class MITBIHDataset(BaseDataset):
         if num_processes is None:
             num_processes = psutil.cpu_count(False)
 
-        num_processes = min(num_processes, len(data_list))
+        if num_processes:
+            num_processes = min(num_processes, len(data_list))
 
-        pool = multiprocessing.Pool(num_processes)
-        bar = tqdm.tqdm(total=len(data_list))
+            pool = multiprocessing.Pool(num_processes)
+            bar = tqdm.tqdm(total=len(data_list))
 
-        for name in data_list:
-            pool.apply_async(
-                func,
-                args=(name, cache_path),
-                kwds=kwargs,
-                callback=lambda *args, **kwargs: bar.update(1),
-            )
+            for name in data_list:
+                pool.apply_async(
+                    func,
+                    args=(name, cache_path),
+                    kwds=kwargs,
+                    callback=lambda *args, **kwargs: bar.update(1),
+                )
 
-        pool.close()
-        pool.join()
+            pool.close()
+            pool.join()
+        else:
+            for name in tqdm.tqdm(data_list):
+                func(name, cache_path, **kwargs)
 
     @staticmethod
     def cache_wave_ann(name, cache_path, data_path, **kwargs):
         _, wave_ann = load_wave_ann(data_path, name, **kwargs)
-        pickle.dump(
-            wave_ann,
-            open(
-                os.path.join(cache_path, name) + ".pkl",
-                "wb",
-            ),
-        )
+        pickle.dump(wave_ann, open(os.path.join(cache_path, name) + ".pkl", "wb"))
 
     @staticmethod
     def cache_wave_ann_filted(
-        name, cache_path, ann_path, wave_ann_path, symbol_names, around_period_num
+        name,
+        cache_path,
+        ann_path,
+        wave_ann_path,
+        around_period_num,
     ):
+        period_num = around_period_num * 2 + 1
         ann = load_ann(ann_path, name)
-        wave_ann = pickle.load(
-            open(
-                os.path.join(wave_ann_path, name + ".pkl"),
-                "rb",
-            )
-        )
-
-        symbol = {
-            i: symbol
-            for i, symbol in zip(ann.sample, ann.symbol)
-            if symbol in symbol_names
-        }
-
-        wave_ann_filted = defaultdict(list)
-        for cur_name, cur_ann in wave_ann.items():
-            for wave_T_index in range(len(cur_ann["ECG_T_Offsets"])):
-                result = find_index(cur_ann, wave_T_index, 2 * around_period_num + 1)
-                if not result:
-                    continue
-
-                cur_symbol = [
-                    i
-                    for i in symbol
-                    if result[around_period_num]["period_start"]
-                    <= i
-                    <= result[around_period_num]["period_end"]
-                ]
-                if len(cur_symbol) != 1:
-                    continue
-                cur_symbol = symbol[cur_symbol[0]]
-
-                wave_ann_filted[cur_name].append(
-                    {
-                        "symbol": cur_symbol,
-                        "res": result,
-                    }
-                )
-
-        wave_ann_filted = sorted(
-            [(res, name, len(res)) for name, res in wave_ann_filted.items()],
-            key=lambda x: x[-1],
+        wave_ann = pickle.load(open(os.path.join(wave_ann_path, name + ".pkl"), "rb"))
+        lead_name = sorted(
+            [(lead_name, len(a)) for lead_name, a in wave_ann.items()],
+            key=lambda x: x[1],
             reverse=True,
+        )[0][0]
+        wave_ann = wave_ann[lead_name]
+
+        symbol = sorted(
+            [[i, symbol] for i, symbol in zip(ann.sample, ann.symbol)],
+            key=lambda x: x[0],
         )
+
+        wave_ann_filted = []
+        result = Queue(period_num)
+        inds = {wave: 0 for wave in MITBIHDataset.ECGWaves}
+        for i in range(1, len(symbol) - 1):
+            cur_res = {
+                "period": [symbol[i - 1][0], symbol[i + 1][0]],
+                "symbol": symbol[i][1],
+                "peak": symbol[i][0],
+                "waves": [],
+            }
+            for wave_name in MITBIHDataset.ECGWaves:
+                while inds[wave_name] < len(wave_ann[f"ECG_{wave_name}_Offsets"]) and (
+                    np.isnan(wave_ann[f"ECG_{wave_name}_Offsets"][inds[wave_name]])
+                    or wave_ann[f"ECG_{wave_name}_Offsets"][inds[wave_name]]
+                    < cur_res["period"][0]
+                ):
+                    inds[wave_name] += 1
+
+                while inds[wave_name] < len(wave_ann[f"ECG_{wave_name}_Onsets"]):
+                    if np.isnan(
+                        wave_ann[f"ECG_{wave_name}_Onsets"][inds[wave_name]]
+                    ) or np.isnan(
+                        wave_ann[f"ECG_{wave_name}_Offsets"][inds[wave_name]]
+                    ):
+                        inds[wave_name] += 1
+                        continue
+
+                    if (
+                        wave_ann[f"ECG_{wave_name}_Onsets"][inds[wave_name]]
+                        > cur_res["period"][1]
+                    ):
+                        break
+                    elif (
+                        wave_ann[f"ECG_{wave_name}_Onsets"][inds[wave_name]]
+                        < cur_res["period"][0]
+                    ):
+                        start = cur_res["period"][0]
+                    else:
+                        start = wave_ann[f"ECG_{wave_name}_Onsets"][inds[wave_name]]
+
+                    if (
+                        wave_ann[f"ECG_{wave_name}_Offsets"][inds[wave_name]]
+                        > cur_res["period"][1]
+                    ):
+                        cur_res["waves"].append(
+                            [wave_name, start, cur_res["period"][1]]
+                        )
+                        break
+                    else:
+                        end = wave_ann[f"ECG_{wave_name}_Offsets"][inds[wave_name]]
+                        inds[wave_name] += 1
+                        cur_res["waves"].append([wave_name, start, end])
+
+            result.put(cur_res)
+
+            if result.full():
+                wave_ann_filted.append(list(result.queue))
+                result.get()
 
         pickle.dump(
             wave_ann_filted, open(os.path.join(cache_path, name) + ".pkl", "wb")
@@ -233,7 +281,7 @@ class MITBIHDataset(BaseDataset):
                 os.path.join(self.cache_info["wave_ann_filted"]["path"], name + ".pkl"),
                 "rb",
             )
-        )[0][0]
+        )
 
         signal = torch.tensor(record.p_signal, dtype=torch.float32).T
         signal = signal.reshape(*signal.shape[:-1], -1, self.token_size)
@@ -241,8 +289,15 @@ class MITBIHDataset(BaseDataset):
         data_list = []
 
         for result in results:
-            start_token = result["res"][0]["period_start"] // self.token_size
-            end_token = ceil(result["res"][-1]["period_end"] / self.token_size) + 1
+            if (
+                not self.symbol_super_class
+                and result[self.around_period_num]["symbol"]
+                not in MITBIHDataset.SymbolClasses
+            ):
+                continue
+
+            start_token = result[0]["period"][0] // self.token_size
+            end_token = ceil(result[-1]["period"][1] / self.token_size) + 1
 
             if end_token - start_token > self.data_size:
                 continue
@@ -267,22 +322,34 @@ class MITBIHDataset(BaseDataset):
             for sig_index, sig_name in enumerate(record.sig_name):
                 signal_embedding[sig_index] = self.signal_names[sig_name]
 
-            wave_embedding = signal.new_zeros((self.total_size, self.cls_token_size))
+            position_embedding = torch.arange(0, self.total_size, device=signal.device)
+            position_embedding = (
+                position_embedding - result[self.around_period_num]["peak"]
+            )
+
+            wave_embedding = signal.new_zeros((self.total_size, self.ECGWaveNum))
+
+            symbol_to_index = (
+                MITBIHDataset.SymbolClassToSuperClassIndex
+                if self.symbol_super_class
+                else MITBIHDataset.SymbolClassToIndex
+            )
+
+            symbol_target = signal.new_full(
+                (), symbol_to_index[result[self.around_period_num]["symbol"]]
+            )
 
             attention_mask = signal.new_zeros(
                 (self.total_size, self.total_size), dtype=torch.bool
             )
-            attention_mask[:, self.cls_token_size + data_length :] = True
-            attention_mask[: self.cls_token_size] = True
+            attention_mask[:, self.ECGWaveNum + data_length :] = True
+            attention_mask[: self.ECGWaveNum] = True
 
-            for res in result["res"]:
-                for wave_index, wave_name in enumerate(self.ecg_wave_kinds):
-                    start_percent, start = modf(
-                        res[f"ECG_{wave_name}_Onsets"] / self.token_size
-                    )
-                    end_percent, end = modf(
-                        res[f"ECG_{wave_name}_Offsets"] / self.token_size
-                    )
+            for i, res in enumerate(result):
+                for wave_name, start, end in res["waves"]:
+                    wave_index = MITBIHDataset.ECGWaveToIndex[wave_name]
+                    start_percent, start = modf(start / self.token_size)
+                    end_percent, end = modf(end / self.token_size)
                     start = int(start) - start_token + 1
                     end = int(end) - start_token + 1
 
@@ -293,19 +360,22 @@ class MITBIHDataset(BaseDataset):
                         wave_embedding[start + 1 : end, wave_index] = 1
                         wave_embedding[end, wave_index] = end_percent
 
-                    attention_mask[wave_index, start : end + 1] = False
+                    if i == self.around_period_num:
+                        attention_mask[wave_index, start : end + 1] = False
 
-            data_list.append(
-                {
-                    "name": name,
-                    "signal": cur_signal,
-                    "attention_mask": attention_mask,
-                    "signal_name": record.sig_name,
-                    "signal_embedding": signal_embedding,
-                    "wave_embedding": wave_embedding,
-                    "symbol_target": self.symbol_names[result["symbol"]],
-                    # "aux_note": cur_aux_note,
-                }
-            )
+            if not ((~attention_mask).sum(-1) == 0).any():
+                data_list.append(
+                    {
+                        "name": name,
+                        "signal": cur_signal,
+                        "attention_mask": attention_mask,
+                        "signal_name": record.sig_name,
+                        "signal_embedding": signal_embedding,
+                        "position_embedding": position_embedding,
+                        "wave_embedding": wave_embedding,
+                        "symbol_target": symbol_target,
+                        # "aux_note": cur_aux_note,
+                    }
+                )
 
         return data_list

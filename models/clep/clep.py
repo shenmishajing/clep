@@ -1,3 +1,4 @@
+import math
 import pickle
 
 import torch
@@ -13,7 +14,7 @@ class CLEP(nn.Module):
         token_size: int,
         wave_kind_num=3,
         signal_kind_num=5,
-        embedding_dim=512,
+        embedding_dim=32,
         symbol_embedding_dim=1536,
         symbol_embedding_path=None,
         symbol_loss: nn.Module = nn.CrossEntropyLoss(),
@@ -39,7 +40,7 @@ class CLEP(nn.Module):
         for p in self.symbol_embedding.parameters():
             p.requires_grad = False
 
-        self.symbol_fc = nn.Linear(embedding_dim, symbol_embedding_dim)
+        self.symbol_fc = nn.Linear(4 * embedding_dim, symbol_embedding_dim)
 
         self.symbol_loss = symbol_loss
         self.normalize_loss = normalize_loss
@@ -54,8 +55,24 @@ class CLEP(nn.Module):
         x = torch.cat(
             [self.cls_tokens[None, None].expand(*x.shape[:2], -1, -1), x], dim=-2
         )
-        x = x + self.wave_embedding(data["wave_embedding"])[:, None]
-        x = x + self.signal_embedding(data["signal_embedding"])[..., None, :]
+        wave_embedding = self.wave_embedding(data["wave_embedding"])[:, None].expand_as(
+            x
+        )
+        signal_embedding = self.signal_embedding(data["signal_embedding"])[
+            ..., None, :
+        ].expand_as(x)
+
+        pos_embedding = x.new_zeros([x.shape[0], *x.shape[-2:]])
+        position = data["position_embedding"][..., None]
+        div_term = torch.exp(
+            torch.arange(0, x.shape[-1], 2, device=x.device)
+            * -(math.log(10000.0) / x.shape[-1])
+        )[None, None]
+        pos_embedding[..., 0::2] = torch.sin(position * div_term)  # 偶数下标的位置
+        pos_embedding[..., 1::2] = torch.cos(position * div_term)  # 奇数下标的位置
+        pos_embedding = pos_embedding[:, None].expand_as(x)
+
+        x = torch.cat([x, wave_embedding, signal_embedding, pos_embedding], dim=-1)
 
         x = self.symbol_fc(
             self.ecg_encoder(
@@ -85,13 +102,8 @@ class CLEP(nn.Module):
 
         target = data["symbol_target"][:, None].expand(-1, x.shape[1])
 
-        pred = symbol_embedding.matmul(x[..., None]).squeeze(-1).mT
-        if isinstance(self.symbol_loss, nn.NLLLoss):
-            pred = pred + 1
-            pred = pred / pred.sum(dim=1, keepdim=True)
-            loss = self.symbol_loss(pred, target) + 1
-        else:
-            loss = self.symbol_loss(pred, target)
-            pred = pred.sigmoid()
+        pred = (symbol_embedding.matmul(x[..., None]).squeeze(-1).mT + 1) / 2
+
+        loss = self.symbol_loss(pred, target)
 
         return {"log_dict": {"loss": loss}, "pred": pred, "target": target}

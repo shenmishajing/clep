@@ -336,7 +336,9 @@ class MITBIHDataset(BaseDataset):
             )
 
             symbol_target = signal.new_full(
-                (), symbol_to_index[result[self.around_period_num]["symbol"]]
+                (),
+                symbol_to_index[result[self.around_period_num]["symbol"]],
+                dtype=torch.long,
             )
 
             attention_mask = signal.new_zeros(

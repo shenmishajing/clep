@@ -109,9 +109,9 @@ class CLEP(nn.Module):
         target = data["symbol_target"][..., None]
         if self.multi_label:
             target = target.expand(-1, -1, x.shape[1])
+            loss = self.loss(pred, target.to(pred.dtype))
         else:
             target = target.expand(-1, x.shape[1])
-
-        loss = self.loss(pred, target.to(pred.dtype))
+            loss = self.loss(pred, target)
 
         return {"log_dict": {"loss": loss}, "pred": pred, "target": target}

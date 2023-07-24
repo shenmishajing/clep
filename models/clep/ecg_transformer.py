@@ -88,7 +88,7 @@ class ECGTransformer(nn.Module):
             :, : self.wave_kind_num
         ].reshape(*x.shape[:2], -1)
 
-        pred = self.fc(x)
+        pred = self.fc(x).mT
 
         target = data["symbol_target"][..., None]
         if self.multi_label:

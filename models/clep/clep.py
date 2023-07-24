@@ -17,7 +17,7 @@ class CLEP(nn.Module):
         embedding_dim=32,
         symbol_embedding_dim=1536,
         symbol_embedding_path=None,
-        symbol_loss: nn.Module = nn.CrossEntropyLoss(),
+        loss: nn.Module = nn.NLLLoss(),
         normalize_loss: bool = True,
     ):
         super().__init__()
@@ -42,7 +42,7 @@ class CLEP(nn.Module):
 
         self.symbol_fc = nn.Linear(4 * embedding_dim, symbol_embedding_dim)
 
-        self.symbol_loss = symbol_loss
+        self.loss = loss
         self.normalize_loss = normalize_loss
 
         self._reset_parameters()
@@ -104,6 +104,9 @@ class CLEP(nn.Module):
 
         pred = (symbol_embedding.matmul(x[..., None]).squeeze(-1).mT + 1) / 2
 
-        loss = self.symbol_loss(pred, target)
+        if isinstance(self.loss, nn.NLLLoss):
+            loss = 1 + self.loss(pred / pred.sum(dim=-1, keepdim=True), target)
+        else:
+            loss = self.loss(pred, target)
 
         return {"log_dict": {"loss": loss}, "pred": pred, "target": target}

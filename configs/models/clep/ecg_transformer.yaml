@@ -1,0 +1,23 @@
+model:
+    class_path: lightning_template.LightningModule
+    init_args:
+        model:
+            class_path: models.ECGTransformer
+            init_args:
+                ecg_encoder:
+                    class_path: torch.nn.TransformerEncoder
+                    init_args:
+                        encoder_layer:
+                            class_path: torch.nn.TransformerEncoderLayer
+                            init_args:
+                                d_model: 128
+                                nhead: 16
+                                batch_first: true
+                        num_layers: 2
+                token_size: 4
+                wave_kind_num: 3
+                signal_kind_num: 5
+                embedding_dim: 32
+                num_classes: 5
+                multi_label: false
+                normalize_loss: true

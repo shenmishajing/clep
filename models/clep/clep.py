@@ -104,14 +104,14 @@ class CLEP(nn.Module):
             x = F.normalize(x, dim=-1)
             symbol_embedding = F.normalize(symbol_embedding, dim=-1)
 
+        pred = (symbol_embedding.matmul(x[..., None]).squeeze(-1).mT + 1) / 2
+
         target = data["symbol_target"][..., None]
         if self.multi_label:
             target = target.expand(-1, -1, x.shape[1])
         else:
             target = target.expand(-1, x.shape[1])
 
-        pred = (symbol_embedding.matmul(x[..., None]).squeeze(-1).mT + 1) / 2
-
-        loss = self.loss(pred, target)
+        loss = self.loss(pred, target.to(pred.dtype))
 
         return {"log_dict": {"loss": loss}, "pred": pred, "target": target}

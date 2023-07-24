@@ -343,7 +343,7 @@ class MITBIHDataset(BaseDataset):
                     if self.symbol_super_class
                     else MITBIHDataset.SymbolClassNum
                 )
-                symbol_target = signal.new_zeros((symbol_class_num))
+                symbol_target = signal.new_zeros((symbol_class_num), dtype=torch.int)
                 symbol_target[
                     symbol_to_index[result[self.around_period_num]["symbol"]]
                 ] = 1

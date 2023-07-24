@@ -42,7 +42,10 @@ class CLEP(ECGTransformer):
             x = F.normalize(x, dim=-1)
             symbol_embedding = F.normalize(symbol_embedding, dim=-1)
 
-        pred = (symbol_embedding.matmul(x[..., None]).squeeze(-1).mT + 1) / 2
+        pred = symbol_embedding.matmul(x[..., None]).squeeze(-1).mT
+
+        if self.normalize_loss:
+            pred = (pred + 1) / 2
 
         target = data["symbol_target"][..., None]
         if self.multi_label:

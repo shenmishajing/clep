@@ -106,9 +106,9 @@ class CLEP(nn.Module):
 
         target = data["symbol_target"][:, None]
         if self.multi_label:
-            target = target.expand(-1, x.shape[1])
-        else:
             target = target.expand(-1, x.shape[1], -1)
+        else:
+            target = target.expand(-1, x.shape[1])
 
         pred = (symbol_embedding.matmul(x[..., None]).squeeze(-1).mT + 1) / 2
 

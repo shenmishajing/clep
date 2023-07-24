@@ -104,9 +104,9 @@ class CLEP(nn.Module):
             x = F.normalize(x, dim=-1)
             symbol_embedding = F.normalize(symbol_embedding, dim=-1)
 
-        target = data["symbol_target"][:, None]
+        target = data["symbol_target"][..., None]
         if self.multi_label:
-            target = target.expand(-1, x.shape[1], -1)
+            target = target.expand(-1, -1, x.shape[1])
         else:
             target = target.expand(-1, x.shape[1])
 

@@ -1,0 +1,7 @@
+__base__: ./clep.yaml
+
+model:
+    init_args:
+        model:
+            init_args:
+                multi_label: true

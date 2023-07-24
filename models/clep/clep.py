@@ -17,7 +17,7 @@ class CLEP(nn.Module):
         embedding_dim=32,
         symbol_embedding_dim=1536,
         symbol_embedding_path=None,
-        loss: nn.Module = nn.NLLLoss(),
+        multi_label=False,
         normalize_loss: bool = True,
     ):
         super().__init__()
@@ -26,6 +26,8 @@ class CLEP(nn.Module):
         self.wave_kind_num = wave_kind_num
         self.signal_kind_num = signal_kind_num
         self.embedding_dim = embedding_dim
+        self.multi_label = multi_label
+        self.normalize_loss = normalize_loss
 
         self.ecg_encoder = ecg_encoder
         self.token_embedding = nn.Linear(token_size, embedding_dim)
@@ -42,8 +44,10 @@ class CLEP(nn.Module):
 
         self.symbol_fc = nn.Linear(4 * embedding_dim, symbol_embedding_dim)
 
-        self.loss = loss
-        self.normalize_loss = normalize_loss
+        if multi_label:
+            self.loss = nn.BCELoss()
+        else:
+            self.loss = nn.CrossEntropyLoss()
 
         self._reset_parameters()
 
@@ -104,9 +108,6 @@ class CLEP(nn.Module):
 
         pred = (symbol_embedding.matmul(x[..., None]).squeeze(-1).mT + 1) / 2
 
-        if isinstance(self.loss, nn.NLLLoss):
-            loss = 1 + self.loss(pred / pred.sum(dim=-1, keepdim=True), target)
-        else:
-            loss = self.loss(pred, target)
+        loss = self.loss(pred, target)
 
         return {"log_dict": {"loss": loss}, "pred": pred, "target": target}

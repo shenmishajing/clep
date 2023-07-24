@@ -1,0 +1,10 @@
+__base__:
+    - ./mit_bih.yaml
+    - ../../metrics/classification_multi_label.yaml
+
+data:
+    init_args:
+        dataset_cfg:
+            fit:
+                init_args:
+                    multi_label: true

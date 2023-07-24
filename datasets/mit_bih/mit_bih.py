@@ -51,6 +51,7 @@ class MITBIHDataset(BaseDataset):
         data_size=512,
         around_period_num=1,
         symbol_super_class=False,
+        multi_label=False,
         signal_names=["MLII", "V1", "V2", "V4", "V5"],
         ecg_process_method="dwt",
         **kwargs,
@@ -60,6 +61,7 @@ class MITBIHDataset(BaseDataset):
         self.around_period_num = around_period_num
         self.period_num = around_period_num * 2 + 1
         self.symbol_super_class = symbol_super_class
+        self.multi_label = multi_label
         self.signal_names = {
             signal_name: i for i, signal_name in enumerate(signal_names)
         }
@@ -335,11 +337,22 @@ class MITBIHDataset(BaseDataset):
                 else MITBIHDataset.SymbolClassToIndex
             )
 
-            symbol_target = signal.new_full(
-                (),
-                symbol_to_index[result[self.around_period_num]["symbol"]],
-                dtype=torch.long,
-            )
+            if self.multi_label:
+                symbol_class_num = (
+                    MITBIHDataset.SymbolSuperClassesNum
+                    if self.symbol_super_class
+                    else MITBIHDataset.SymbolClassNum
+                )
+                symbol_target = signal.new_zeros((symbol_class_num))
+                symbol_target[
+                    symbol_to_index[result[self.around_period_num]["symbol"]]
+                ] = 1
+            else:
+                symbol_target = signal.new_full(
+                    (),
+                    symbol_to_index[result[self.around_period_num]["symbol"]],
+                    dtype=torch.long,
+                )
 
             attention_mask = signal.new_zeros(
                 (self.total_size, self.total_size), dtype=torch.bool

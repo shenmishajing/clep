@@ -1,0 +1,23 @@
+__base__: ./classification.yaml
+
+model:
+    init_args:
+        evaluator_cfg:
+            init_args:
+                metrics:
+                    acc:
+                        init_args:
+                            task: multilabel
+                            num_labels: 5
+                    F1:
+                        init_args:
+                            task: multilabel
+                            num_labels: 5
+                    PR-AUC:
+                        init_args:
+                            task: multilabel
+                            num_labels: 5
+                    ROC-AUC:
+                        init_args:
+                            task: multilabel
+                            num_labels: 5

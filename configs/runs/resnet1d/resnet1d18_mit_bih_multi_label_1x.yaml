@@ -1,0 +1,5 @@
+__base__:
+    - ../../default_runtime.yaml
+    - ../../schedules/schedule_1x.yaml
+    - ../../datasets/mit_bih/mit_bih_multi_label.yaml
+    - ../../models/resnet1d/resnet1d18_multi_label.yaml

@@ -147,7 +147,7 @@ class ResNet1D(nn.Module):
         self,
         arch: str = "res18",
         num_classes: int = 1000,
-        loss: nn.Module = nn.CrossEntropyLoss(),
+        multi_label=False,
         zero_init_residual: bool = False,
         groups: int = 1,
         width_per_group: int = 64,
@@ -155,8 +155,12 @@ class ResNet1D(nn.Module):
         norm_layer: Optional[Callable[..., nn.Module]] = None,
     ) -> None:
         super().__init__()
+        self.multi_label = multi_label
         block, layers = self.ARCHS[arch]
-        self.loss = loss
+        if multi_label:
+            self.loss = nn.BCEWithLogitsLoss()
+        else:
+            self.loss = nn.CrossEntropyLoss()
         _log_api_usage_once(self)
         if norm_layer is None:
             norm_layer = nn.BatchNorm1d
@@ -280,14 +284,18 @@ class ResNet1D(nn.Module):
     def forward(self, data):
         x = data["signal"].mT
 
-        target = data["symbol_target"][:, None].expand(-1, x.shape[1])
-
         pred = (
             self._forward_impl(x.reshape(-1, *x.shape[-2:]))
             .reshape(*x.shape[:2], -1)
             .mT
         )
 
-        loss = self.loss(pred, target)
+        target = data["symbol_target"][..., None]
+        if self.multi_label:
+            target = target.expand(-1, -1, x.shape[1])
+            loss = self.loss(pred, target.to(pred.dtype))
+        else:
+            target = target.expand(-1, x.shape[1])
+            loss = self.loss(pred, target)
 
         return {"log_dict": {"loss": loss}, "pred": pred, "target": target}

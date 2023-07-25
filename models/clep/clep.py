@@ -46,6 +46,8 @@ class CLEP(ECGTransformer):
 
         if self.normalize_loss:
             pred = (pred + 1) / 2
+        elif self.multi_label:
+            pred = pred.sigmoid()
 
         target = data["symbol_target"][..., None]
         if self.multi_label:

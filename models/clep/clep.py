@@ -11,6 +11,7 @@ class CLEP(ECGTransformer):
     def __init__(
         self,
         *args,
+        normalize_loss: bool = True,
         symbol_embedding_dim=1536,
         symbol_embedding_path=None,
         **kwargs,
@@ -24,6 +25,12 @@ class CLEP(ECGTransformer):
             p.requires_grad = False
 
         self.fc = nn.Linear(4 * self.embedding_dim, symbol_embedding_dim)
+        self.normalize_loss = normalize_loss
+
+        if normalize_loss:
+            self.t = nn.Parameter(torch.zeros(()))
+        else:
+            self.t = None
 
     def forward(self, data):
         x = self.embedding(data)
@@ -45,7 +52,7 @@ class CLEP(ECGTransformer):
         pred = symbol_embedding.matmul(x[..., None]).squeeze(-1).mT
 
         if self.normalize_loss:
-            pred = (pred + 1) / 2
+            pred = pred * self.t.exp()
         elif self.multi_label:
             pred = pred.sigmoid()
 

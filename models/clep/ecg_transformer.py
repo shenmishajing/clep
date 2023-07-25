@@ -15,7 +15,6 @@ class ECGTransformer(nn.Module):
         embedding_dim=32,
         num_classes=5,
         multi_label=False,
-        normalize_loss: bool = True,
     ):
         super().__init__()
 
@@ -24,7 +23,6 @@ class ECGTransformer(nn.Module):
         self.signal_kind_num = signal_kind_num
         self.embedding_dim = embedding_dim
         self.multi_label = multi_label
-        self.normalize_loss = normalize_loss
         self.num_classes = num_classes
 
         self.ecg_encoder = ecg_encoder

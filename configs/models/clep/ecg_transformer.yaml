@@ -20,4 +20,4 @@ model:
                 embedding_dim: 32
                 num_classes: 5
                 multi_label: false
-                normalize_loss: true
+                normalize_loss: false

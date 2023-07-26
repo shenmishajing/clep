@@ -56,43 +56,47 @@ class CLEP(ECGTransformer):
         ).reshape(*x.shape[:2], len(self.waves), -1)
 
         pred = []
-        for lead_ind, lead in enumerate(data["signal_name"]):
+        for batch_ind, leads in enumerate(data["signal_name"]):
             cur_pred = []
-            for symbol in self.symbols:
-                cur_x = []
-                symbol_embedding = []
-                for i, wave in enumerate(self.waves):
-                    if wave in self.symbol_embedding[lead][symbol]:
-                        # b, d: batch_size, embedding_dim
-                        cur_x.append(x[..., lead_ind, i, :])
-                        # d: embedding_dim
-                        symbol_embedding.append(
-                            self.symbol_embedding[lead][symbol][wave]
-                        )
+            for lead_ind, lead in enumerate(leads):
+                cur_p = []
+                for symbol in self.symbols:
+                    cur_x = []
+                    symbol_embedding = []
+                    for i, wave in enumerate(self.waves):
+                        if wave in self.symbol_embedding[lead][symbol]:
+                            # d: embedding_dim
+                            cur_x.append(x[batch_ind, lead_ind, i, :])
+                            # d: embedding_dim
+                            symbol_embedding.append(
+                                self.symbol_embedding[lead][symbol][wave]
+                            )
 
-                # b, w * d: batch_size, wave_kind_num * embedding_dim
-                cur_x = torch.cat(cur_x, dim=-1)
-                # w * d: wave_kind_num * embedding_dim
-                symbol_embedding = torch.cat(symbol_embedding, dim=-1)
+                    # w * d: wave_kind_num * embedding_dim
+                    cur_x = torch.cat(cur_x, dim=-1)
+                    # w * d: wave_kind_num * embedding_dim
+                    symbol_embedding = torch.cat(symbol_embedding, dim=-1)
 
-                if self.normalize_loss:
-                    cur_x = F.normalize(cur_x, dim=-1)
-                    symbol_embedding = F.normalize(symbol_embedding, dim=-1)
+                    if self.normalize_loss:
+                        cur_x = F.normalize(cur_x, dim=-1)
+                        symbol_embedding = F.normalize(symbol_embedding, dim=-1)
 
-                # b, 1: batch_size, 1
-                cur_pred.append(cur_x.matmul(symbol_embedding[..., None]))
+                    # 1: 1
+                    cur_p.append((cur_x * symbol_embedding).sum())
 
-            # b, s: batch_size, symbol_num
-            cur_pred = torch.cat(cur_pred, dim=-1)
-            pred.append(cur_pred)
+                # s: symbol_num
+                cur_pred.append(torch.stack(cur_p))
+
+            # s, c: symbol_num, lead_num
+            pred.append(torch.stack(cur_pred, dim=-1))
 
         # b, s, c: batch_size, symbol_num, lead_num
-        pred = torch.stack(pred, dim=-1)
+        pred = torch.stack(pred, dim=0)
 
         target = data["symbol_target"][..., None]
         if self.multi_label:
             target = target.expand(-1, -1, x.shape[1])
-            loss = self.loss(pred, target.to(pred.dtype))
+            loss = self.loss(pred.sigmoid(), target.to(pred.dtype))
         else:
             target = target.expand(-1, x.shape[1])
             loss = self.loss(pred, target)

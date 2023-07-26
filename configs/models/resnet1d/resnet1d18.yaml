@@ -5,4 +5,4 @@ model:
             class_path: models.ResNet1D
             init_args:
                 arch: res18
-                num_classes: 5
+                num_classes: 4

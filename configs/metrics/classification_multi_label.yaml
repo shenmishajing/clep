@@ -17,6 +17,14 @@ model:
                         init_args:
                             task: *task
                             num_labels: *num_classes
+                    percision:
+                        init_args:
+                            task: *task
+                            num_labels: *num_classes
+                    recall:
+                        init_args:
+                            task: *task
+                            num_labels: *num_classes
                     PR-AUC:
                         init_args:
                             task: *task
@@ -32,6 +40,18 @@ model:
                                     task: *task
                                     num_labels: *num_classes
                     F1_classwise:
+                        init_args:
+                            metric:
+                                init_args:
+                                    task: *task
+                                    num_labels: *num_classes
+                    percision_classwise:
+                        init_args:
+                            metric:
+                                init_args:
+                                    task: *task
+                                    num_labels: *num_classes
+                    recall_classwise:
                         init_args:
                             metric:
                                 init_args:

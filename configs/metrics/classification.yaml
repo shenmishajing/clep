@@ -21,6 +21,18 @@ model:
                             task: *task
                             num_classes: *num_classes
                             average: macro
+                    percision:
+                        class_path: torchmetrics.Precision
+                        init_args:
+                            task: *task
+                            num_classes: *num_classes
+                            average: macro
+                    recall:
+                        class_path: torchmetrics.Recall
+                        init_args:
+                            task: *task
+                            num_classes: *num_classes
+                            average: macro
                     PR-AUC:
                         class_path: torchmetrics.AveragePrecision
                         init_args:
@@ -51,6 +63,28 @@ model:
                             labels: *labels
                             metric:
                                 class_path: torchmetrics.F1Score
+                                init_args:
+                                    task: *task
+                                    num_classes: *num_classes
+                                    average: null
+                    percision_classwise:
+                        class_path: torchmetrics.ClasswiseWrapper
+                        init_args:
+                            prefix: percision_
+                            labels: *labels
+                            metric:
+                                class_path: torchmetrics.Precision
+                                init_args:
+                                    task: *task
+                                    num_classes: *num_classes
+                                    average: null
+                    recall_classwise:
+                        class_path: torchmetrics.ClasswiseWrapper
+                        init_args:
+                            prefix: recall_
+                            labels: *labels
+                            metric:
+                                class_path: torchmetrics.Recall
                                 init_args:
                                     task: *task
                                     num_classes: *num_classes

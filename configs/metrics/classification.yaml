@@ -14,21 +14,25 @@ model:
                         init_args:
                             task: *task
                             num_classes: *num_classes
+                            average: micro
                     F1:
                         class_path: torchmetrics.F1Score
                         init_args:
                             task: *task
                             num_classes: *num_classes
+                            average: macro
                     PR-AUC:
                         class_path: torchmetrics.AveragePrecision
                         init_args:
                             task: *task
                             num_classes: *num_classes
+                            average: macro
                     ROC-AUC:
                         class_path: torchmetrics.AUROC
                         init_args:
                             task: *task
                             num_classes: *num_classes
+                            average: macro
                     acc_classwise:
                         class_path: torchmetrics.ClasswiseWrapper
                         init_args:
@@ -39,6 +43,7 @@ model:
                                 init_args:
                                     task: *task
                                     num_classes: *num_classes
+                                    average: null
                     F1_classwise:
                         class_path: torchmetrics.ClasswiseWrapper
                         init_args:
@@ -49,6 +54,7 @@ model:
                                 init_args:
                                     task: *task
                                     num_classes: *num_classes
+                                    average: null
                     PR-AUC_classwise:
                         class_path: torchmetrics.ClasswiseWrapper
                         init_args:
@@ -59,6 +65,7 @@ model:
                                 init_args:
                                     task: *task
                                     num_classes: *num_classes
+                                    average: null
                     ROC-AUC_classwise:
                         class_path: torchmetrics.ClasswiseWrapper
                         init_args:
@@ -69,6 +76,7 @@ model:
                                 init_args:
                                     task: *task
                                     num_classes: *num_classes
+                                    average: null
 
 trainer:
     callbacks:

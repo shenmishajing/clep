@@ -296,7 +296,8 @@ class MITBIHDataset(BaseDataset):
 
         for result in results:
             if (
-                not self.symbol_super_class
+                not self.multi_label
+                and not self.symbol_super_class
                 and result[self.around_period_num]["symbol"]
                 not in MITBIHDataset.SymbolClasses
             ):
@@ -348,9 +349,10 @@ class MITBIHDataset(BaseDataset):
                     else MITBIHDataset.SymbolClassNum
                 )
                 symbol_target = signal.new_zeros((symbol_class_num), dtype=torch.int)
-                symbol_target[
-                    symbol_to_index[result[self.around_period_num]["symbol"]]
-                ] = 1
+                if result[self.around_period_num]["symbol"] in symbol_to_index:
+                    symbol_target[
+                        symbol_to_index[result[self.around_period_num]["symbol"]]
+                    ] = 1
             else:
                 symbol_target = signal.new_full(
                     (),

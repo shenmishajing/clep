@@ -1,63 +1,80 @@
+__import__:
+    task: &task multiclass
+    num_classes: &num_classes 4
+    labels: &labels [L, R, V, A]
+
 model:
     init_args:
         evaluator_cfg:
             class_path: torchmetrics.MetricCollection
             init_args:
                 metrics:
-                    - class_path: torchmetrics.Accuracy
-                      init_args:
-                          task: multiclass
-                          num_classes: 4
-                    - class_path: torchmetrics.F1Score
-                      init_args:
-                          task: multiclass
-                          num_classes: 4
-                    - class_path: torchmetrics.AveragePrecision
-                      init_args:
-                          task: multiclass
-                          num_classes: 4
-                    - class_path: torchmetrics.AUROC
-                      init_args:
-                          task: multiclass
-                          num_classes: 4
-                    - class_path: torchmetrics.ClasswiseWrapper
-                      init_args:
-                          labels: [L, R, V, A]
-                          metric:
-                              class_path: torchmetrics.Accuracy
-                              init_args:
-                                  task: multiclass
-                                  num_classes: 4
-                    - class_path: torchmetrics.ClasswiseWrapper
-                      init_args:
-                          labels: [L, R, V, A]
-                          metric:
-                              class_path: torchmetrics.F1Score
-                              init_args:
-                                  task: multiclass
-                                  num_classes: 4
-                    - class_path: torchmetrics.ClasswiseWrapper
-                      init_args:
-                          labels: [L, R, V, A]
-                          metric:
-                              class_path: torchmetrics.AveragePrecision
-                              init_args:
-                                  task: multiclass
-                                  num_classes: 4
-                    - class_path: torchmetrics.ClasswiseWrapper
-                      init_args:
-                          labels: [L, R, V, A]
-                          metric:
-                              class_path: torchmetrics.AUROC
-                              init_args:
-                                  task: multiclass
-                                  num_classes: 4
+                    acc:
+                        class_path: torchmetrics.Accuracy
+                        init_args:
+                            task: *task
+                            num_classes: *num_classes
+                    F1:
+                        class_path: torchmetrics.F1Score
+                        init_args:
+                            task: *task
+                            num_classes: *num_classes
+                    PR-AUC:
+                        class_path: torchmetrics.AveragePrecision
+                        init_args:
+                            task: *task
+                            num_classes: *num_classes
+                    ROC-AUC:
+                        class_path: torchmetrics.AUROC
+                        init_args:
+                            task: *task
+                            num_classes: *num_classes
+                    acc_classwise:
+                        class_path: torchmetrics.ClasswiseWrapper
+                        init_args:
+                            prefix: acc_
+                            labels: *labels
+                            metric:
+                                class_path: torchmetrics.Accuracy
+                                init_args:
+                                    task: *task
+                                    num_classes: *num_classes
+                    F1_classwise:
+                        class_path: torchmetrics.ClasswiseWrapper
+                        init_args:
+                            prefix: F1_
+                            labels: *labels
+                            metric:
+                                class_path: torchmetrics.F1Score
+                                init_args:
+                                    task: *task
+                                    num_classes: *num_classes
+                    PR-AUC_classwise:
+                        class_path: torchmetrics.ClasswiseWrapper
+                        init_args:
+                            prefix: PR-AUC_
+                            labels: *labels
+                            metric:
+                                class_path: torchmetrics.AveragePrecision
+                                init_args:
+                                    task: *task
+                                    num_classes: *num_classes
+                    ROC-AUC_classwise:
+                        class_path: torchmetrics.ClasswiseWrapper
+                        init_args:
+                            prefix: ROC-AUC_
+                            labels: *labels
+                            metric:
+                                class_path: torchmetrics.AUROC
+                                init_args:
+                                    task: *task
+                                    num_classes: *num_classes
 
 trainer:
     callbacks:
         change_item:
             - - 0
               - init_args:
-                    monitor: val/MulticlassF1Score
-                    filename: "epoch:{epoch}-val_f1:{val/MulticlassF1Score:.4g}.ckpt"
+                    monitor: val/F1
+                    filename: "epoch:{epoch}-val_f1:{val/F1:.4g}.ckpt"
                     mode: max

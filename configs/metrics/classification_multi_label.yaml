@@ -1,63 +1,51 @@
+__base__: classification.yaml
+
+__import__:
+    task: &task multilabel
+    num_classes: &num_classes 4
+
 model:
     init_args:
         evaluator_cfg:
-            class_path: torchmetrics.MetricCollection
             init_args:
                 metrics:
-                    - class_path: torchmetrics.Accuracy
-                      init_args:
-                          task: multilabel
-                          num_labels: 4
-                    - class_path: torchmetrics.F1Score
-                      init_args:
-                          task: multilabel
-                          num_labels: 4
-                    - class_path: torchmetrics.AveragePrecision
-                      init_args:
-                          task: multilabel
-                          num_labels: 4
-                    - class_path: torchmetrics.AUROC
-                      init_args:
-                          task: multilabel
-                          num_labels: 4
-                    - class_path: torchmetrics.ClasswiseWrapper
-                      init_args:
-                          labels: [L, R, V, A]
-                          metric:
-                              class_path: torchmetrics.Accuracy
-                              init_args:
-                                  task: multilabel
-                                  num_labels: 4
-                    - class_path: torchmetrics.ClasswiseWrapper
-                      init_args:
-                          labels: [L, R, V, A]
-                          metric:
-                              class_path: torchmetrics.F1Score
-                              init_args:
-                                  task: multilabel
-                                  num_labels: 4
-                    - class_path: torchmetrics.ClasswiseWrapper
-                      init_args:
-                          labels: [L, R, V, A]
-                          metric:
-                              class_path: torchmetrics.AveragePrecision
-                              init_args:
-                                  task: multilabel
-                                  num_labels: 4
-                    - class_path: torchmetrics.ClasswiseWrapper
-                      init_args:
-                          labels: [L, R, V, A]
-                          metric:
-                              class_path: torchmetrics.AUROC
-                              init_args:
-                                  task: multilabel
-                                  num_labels: 4
-
-trainer:
-    callbacks:
-        change_item:
-            - - 0
-              - init_args:
-                    monitor: val/MultilabelF1Score
-                    filename: "epoch:{epoch}-val_f1:{val/MultilabelF1Score:.4g}.ckpt"
-                    mode: max
+                    acc:
+                        init_args:
+                            task: *task
+                            num_labels: *num_classes
+                    F1:
+                        init_args:
+                            task: *task
+                            num_labels: *num_classes
+                    PR-AUC:
+                        init_args:
+                            task: *task
+                            num_labels: *num_classes
+                    ROC-AUC:
+                        init_args:
+                            task: *task
+                            num_labels: *num_classes
+                    acc_classwise:
+                        init_args:
+                            metric:
+                                init_args:
+                                    task: *task
+                                    num_labels: *num_classes
+                    F1_classwise:
+                        init_args:
+                            metric:
+                                init_args:
+                                    task: *task
+                                    num_labels: *num_classes
+                    PR-AUC_classwise:
+                        init_args:
+                            metric:
+                                init_args:
+                                    task: *task
+                                    num_labels: *num_classes
+                    ROC-AUC_classwise:
+                        init_args:
+                            metric:
+                                init_args:
+                                    task: *task
+                                    num_labels: *num_classes

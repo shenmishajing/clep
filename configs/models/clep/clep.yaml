@@ -7,4 +7,4 @@ model:
             init_args:
                 normalize_loss: false
                 symbol_embedding_dim: 1536
-                symbol_embedding_path: data/mit-bih-arrhythmia-database-1.0.0/symbols/symbol_embedding.pkl
+                symbol_embedding_path: data/mit-bih-arrhythmia-database-1.0.0/symbols_chatgpt/symbol_embedding.pkl

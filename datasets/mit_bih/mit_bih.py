@@ -22,12 +22,16 @@ class MITBIHDataset(BaseDataset):
     MIT-BIH Arrhythmia dataset.
     """
 
-    SymbolClasses = "NLRAV"
+    # SymbolClasses = "NLRAV"
+    SymbolClasses = "LRAV"
     SymbolClassNum = len(SymbolClasses)
     SymbolClassToIndex = {name: i for i, name in enumerate(SymbolClasses)}
 
+    # SymbolSuperClasses = OrderedDict(
+    #     [("N", "NLRej"), ("SVEB", "AaJS"), ("VEB", "VE"), ("F", "F"), ("Q", "Qf")]
+    # )
     SymbolSuperClasses = OrderedDict(
-        [("N", "NLRej"), ("SVEB", "AaJS"), ("VEB", "VE"), ("F", "F"), ("Q", "Qf")]
+        [("SVEB", "AaJS"), ("VEB", "VE"), ("F", "F"), ("Q", "Qf")]
     )
     SymbolSuperClassesNum = len(SymbolSuperClasses)
     SymbolSuperClassToIndex = {name: i for i, name in enumerate(SymbolSuperClasses)}

@@ -11,6 +11,8 @@ class CLEP(ECGTransformer):
     def __init__(
         self,
         *args,
+        waves="PRT",
+        symbols="LRVA",
         normalize_loss: bool = True,
         symbol_embedding_dim=1536,
         symbol_embedding_path=None,
@@ -18,14 +20,25 @@ class CLEP(ECGTransformer):
     ):
         super().__init__(*args, **kwargs)
 
-        self.symbol_embedding = nn.ParameterDict(
-            pickle.load(open(symbol_embedding_path, "rb"))
-        )
-        for p in self.symbol_embedding.parameters():
+        self.waves = waves
+        self.symbols = symbols
+        self.normalize_loss = normalize_loss
+
+        self.symbol_embedding = pickle.load(open(symbol_embedding_path, "rb"))
+        self._symbol_embedding = nn.ParameterList()
+        for lead in self.symbol_embedding:
+            for disease in self.symbol_embedding[lead]:
+                for wave in self.symbol_embedding[lead][disease]:
+                    self.symbol_embedding[lead][disease][wave] = nn.Parameter(
+                        self.symbol_embedding[lead][disease][wave]
+                    )
+                    self._symbol_embedding.append(
+                        self.symbol_embedding[lead][disease][wave]
+                    )
+        for p in self._symbol_embedding.parameters():
             p.requires_grad = False
 
         self.fc = nn.Linear(4 * self.embedding_dim, symbol_embedding_dim)
-        self.normalize_loss = normalize_loss
 
         if normalize_loss:
             self.t = nn.Parameter(torch.zeros(()))
@@ -33,28 +46,48 @@ class CLEP(ECGTransformer):
             self.t = None
 
     def forward(self, data):
+        # b, c, l, d: batch_size, lead_num, seq_len, embedding_dim
         x = self.embedding(data)
+
+        # b, c, w, d: batch_size, lead_num, wave_kind_num, embedding_dim
         x = self.fc(
+            # b * c, w, d: batch_size * lead_num, wave_kind_num, embedding_dim
             self.transformer_forward(x, data["attention_mask"])[:, : self.wave_kind_num]
-        ).reshape(*x.shape[:2], -1)
+        ).reshape(*x.shape[:2], len(self.waves), -1)
 
-        symbol_embedding = []
-        for signals in data["signal_name"]:
-            symbol_embedding.append(
-                torch.stack([self.symbol_embedding[signal] for signal in signals])
-            )
-        symbol_embedding = torch.stack(symbol_embedding)
+        pred = []
+        for lead_ind, lead in enumerate(data["signal_name"]):
+            cur_pred = []
+            for symbol in self.symbols:
+                cur_x = []
+                symbol_embedding = []
+                for i, wave in enumerate(self.waves):
+                    if wave in self.symbol_embedding[lead][symbol]:
+                        # b, d: batch_size, embedding_dim
+                        cur_x.append(x[..., lead_ind, i, :])
+                        # d: embedding_dim
+                        symbol_embedding.append(
+                            self.symbol_embedding[lead][symbol][wave]
+                        )
 
-        if self.normalize_loss:
-            x = F.normalize(x, dim=-1)
-            symbol_embedding = F.normalize(symbol_embedding, dim=-1)
+                # b, w * d: batch_size, wave_kind_num * embedding_dim
+                cur_x = torch.cat(cur_x, dim=-1)
+                # w * d: wave_kind_num * embedding_dim
+                symbol_embedding = torch.cat(symbol_embedding, dim=-1)
 
-        pred = symbol_embedding.matmul(x[..., None]).squeeze(-1).mT
+                if self.normalize_loss:
+                    cur_x = F.normalize(cur_x, dim=-1)
+                    symbol_embedding = F.normalize(symbol_embedding, dim=-1)
 
-        if self.normalize_loss:
-            pred = pred * self.t.exp()
-        elif self.multi_label:
-            pred = pred.sigmoid()
+                # b, 1: batch_size, 1
+                cur_pred.append(cur_x.matmul(symbol_embedding[..., None]))
+
+            # b, s: batch_size, symbol_num
+            cur_pred = torch.cat(cur_pred, dim=-1)
+            pred.append(cur_pred)
+
+        # b, s, c: batch_size, symbol_num, lead_num
+        pred = torch.stack(pred, dim=-1)
 
         target = data["symbol_target"][..., None]
         if self.multi_label:

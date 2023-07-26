@@ -8,16 +8,16 @@ model:
                     acc:
                         init_args:
                             task: multilabel
-                            num_labels: 5
+                            num_labels: 4
                     F1:
                         init_args:
                             task: multilabel
-                            num_labels: 5
+                            num_labels: 4
                     PR-AUC:
                         init_args:
                             task: multilabel
-                            num_labels: 5
+                            num_labels: 4
                     ROC-AUC:
                         init_args:
                             task: multilabel
-                            num_labels: 5
+                            num_labels: 4

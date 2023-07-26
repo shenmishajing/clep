@@ -8,22 +8,22 @@ model:
                         class_path: torchmetrics.Accuracy
                         init_args:
                             task: multiclass
-                            num_classes: 5
+                            num_classes: 4
                     F1:
                         class_path: torchmetrics.F1Score
                         init_args:
                             task: multiclass
-                            num_classes: 5
+                            num_classes: 4
                     PR-AUC:
                         class_path: torchmetrics.AveragePrecision
                         init_args:
                             task: multiclass
-                            num_classes: 5
+                            num_classes: 4
                     ROC-AUC:
                         class_path: torchmetrics.AUROC
                         init_args:
                             task: multiclass
-                            num_classes: 5
+                            num_classes: 4
 
 trainer:
     callbacks:

@@ -18,5 +18,5 @@ model:
                 wave_kind_num: 3
                 signal_kind_num: 5
                 embedding_dim: 32
-                num_classes: 5
+                num_classes: 4
                 multi_label: false

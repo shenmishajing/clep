@@ -42,7 +42,7 @@ def get_symbol_raw_description(data_root, leads, symbols):
                     {"role": "system", "content": "You are a helpful assistant."},
                     {
                         "role": "user",
-                        "content": f"In ecg, what does a {disease} look like in lead {lead}? Describe it in P wave, QRS wave and T wave respectively. If there is no special characteristic for some wave in such a lead, just say None.",
+                        "content": f"In ecg, what does a {disease} look like in lead {lead}? Describe it in P wave, QRS wave and T wave respectively, starting with '<wave_name> wave: '. For example, describe P wave starting with P wave: . If there is no special characteristic for some wave in such a lead, just say None.",
                     },
                 ]
                 data[lead][symbol] = get_llm_results(messages)
@@ -136,11 +136,38 @@ def main():
     leads = ["MLII", "V1", "V2", "V4", "V5"]
     symbols = {
         "N": "Normal beat",
-        "L": "Left bundle branch block beat",
-        "R": "Right bundle branch block beat",
-        "V": "Premature ventricular contraction",
-        "A": "Atrial premature beat",
+        "SVEB": "Supraventricular ectopic beat",
+        "VEB": "Ventricular ectopic beat",
+        "F": "Fusion beat",
     }
+    # symbols = {
+    #     # N
+    #     "N": "Normal beat",
+    #     "L": "Left bundle branch block beat",
+    #     "R": "Right bundle branch block beat",
+    #     "e": "Atrial escape beat",
+    #     "j": "Nodal (junctional) escape beat",
+    #     # SVEB
+    #     "A": "Atrial premature beat",
+    #     "a": "Aberrated atrial premature beat",
+    #     "J": "Nodal (junctional) premature beat",
+    #     "S": "Supraventricular premature",
+    #     # VE
+    #     "V": "Premature ventricular contraction",
+    #     "E": "Ventricular escape beat",
+    #     # F
+    #     "F": "Fusion of ventricular and normal beat",
+    #     # Q
+    #     "f": "Fusion of paced and normal beat",
+    #     # "Q": "Unclassifiable beat",
+    #     # # other
+    #     # "[": "Start of ventricular flutter/fibrillation",
+    #     # "!": "Ventricular flutter wave",
+    #     # "]": "End of ventricular flutter/fibrillation",
+    #     # "/": "Paced beat",
+    #     # "x": "Non-conducted P-wave (blocked APC)",
+    #     # "|": "Isolated QRS-like artifact",
+    # }
 
     os.makedirs(data_root, exist_ok=True)
     get_symbol_raw_description(data_root, leads, symbols)

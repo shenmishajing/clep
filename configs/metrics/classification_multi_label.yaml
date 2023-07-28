@@ -2,7 +2,7 @@ __base__: classification.yaml
 
 __import__:
     task: &task multilabel
-    num_classes: &num_classes 4
+    num_classes: &num_classes 3
 
 model:
     init_args:

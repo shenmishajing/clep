@@ -2,7 +2,7 @@ import copy
 import multiprocessing
 import os
 import pickle
-from collections import OrderedDict, defaultdict
+from collections import OrderedDict
 from math import ceil, modf
 from queue import Queue
 
@@ -23,22 +23,22 @@ class MITBIHDataset(BaseDataset):
     """
 
     # SymbolClasses = "NLRAV"
-    SymbolClasses = "LRAV"
+    # SymbolClasses = "NLRejAaJSVEFf"
+    SymbolClasses = "AaJSVEF"
     SymbolClassNum = len(SymbolClasses)
     SymbolClassToIndex = {name: i for i, name in enumerate(SymbolClasses)}
 
     # SymbolSuperClasses = OrderedDict(
     #     [("N", "NLRej"), ("SVEB", "AaJS"), ("VEB", "VE"), ("F", "F"), ("Q", "Qf")]
     # )
-    SymbolSuperClasses = OrderedDict(
-        [("SVEB", "AaJS"), ("VEB", "VE"), ("F", "F"), ("Q", "Qf")]
-    )
+    SymbolSuperClasses = OrderedDict([("SVEB", "AaJS"), ("VEB", "VE"), ("F", "F")])
     SymbolSuperClassesNum = len(SymbolSuperClasses)
     SymbolSuperClassToIndex = {name: i for i, name in enumerate(SymbolSuperClasses)}
 
-    SymbolClassToSuperClassIndex = defaultdict(
-        lambda: MITBIHDataset.SymbolSuperClassToIndex["Q"]
-    )
+    # SymbolClassToSuperClassIndex = defaultdict(
+    #     lambda: MITBIHDataset.SymbolSuperClassToIndex["Q"]
+    # )
+    SymbolClassToSuperClassIndex = {}
 
     for i, (s, name) in enumerate(SymbolSuperClasses.items()):
         for n in name:
@@ -54,7 +54,6 @@ class MITBIHDataset(BaseDataset):
         token_size=4,
         data_size=512,
         around_period_num=1,
-        symbol_super_class=False,
         multi_label=False,
         signal_names=["MLII", "V1", "V2", "V4", "V5"],
         ecg_process_method="dwt",
@@ -64,7 +63,6 @@ class MITBIHDataset(BaseDataset):
         self.data_size = data_size
         self.around_period_num = around_period_num
         self.period_num = around_period_num * 2 + 1
-        self.symbol_super_class = symbol_super_class
         self.multi_label = multi_label
         self.signal_names = {
             signal_name: i for i, signal_name in enumerate(signal_names)
@@ -295,14 +293,6 @@ class MITBIHDataset(BaseDataset):
         data_list = []
 
         for result in results:
-            if (
-                not self.multi_label
-                and not self.symbol_super_class
-                and result[self.around_period_num]["symbol"]
-                not in MITBIHDataset.SymbolClasses
-            ):
-                continue
-
             start_token = result[0]["period"][0] // self.token_size
             end_token = ceil(result[-1]["period"][1] / self.token_size) + 1
 
@@ -336,29 +326,51 @@ class MITBIHDataset(BaseDataset):
 
             wave_embedding = signal.new_zeros((self.total_size, self.ECGWaveNum))
 
-            symbol_to_index = (
-                MITBIHDataset.SymbolClassToSuperClassIndex
-                if self.symbol_super_class
-                else MITBIHDataset.SymbolClassToIndex
-            )
-
             if self.multi_label:
-                symbol_class_num = (
-                    MITBIHDataset.SymbolSuperClassesNum
-                    if self.symbol_super_class
-                    else MITBIHDataset.SymbolClassNum
+                target = signal.new_zeros((self.SymbolSuperClassesNum), dtype=torch.int)
+                if (
+                    result[self.around_period_num]["symbol"]
+                    in self.SymbolClassToSuperClassIndex
+                ):
+                    target[
+                        self.SymbolClassToSuperClassIndex[
+                            result[self.around_period_num]["symbol"]
+                        ]
+                    ] = 1
+                target_single_class = signal.new_zeros(
+                    (self.SymbolClassNum), dtype=torch.int
                 )
-                symbol_target = signal.new_zeros((symbol_class_num), dtype=torch.int)
-                if result[self.around_period_num]["symbol"] in symbol_to_index:
-                    symbol_target[
-                        symbol_to_index[result[self.around_period_num]["symbol"]]
+                if result[self.around_period_num]["symbol"] in self.SymbolClassToIndex:
+                    target_single_class[
+                        self.SymbolClassToIndex[
+                            result[self.around_period_num]["symbol"]
+                        ]
                     ] = 1
             else:
-                symbol_target = signal.new_full(
-                    (),
-                    symbol_to_index[result[self.around_period_num]["symbol"]],
-                    dtype=torch.long,
-                )
+                if (
+                    result[self.around_period_num]["symbol"]
+                    in self.SymbolClassToSuperClassIndex
+                ):
+                    target = signal.new_full(
+                        (),
+                        self.SymbolClassToSuperClassIndex[
+                            result[self.around_period_num]["symbol"]
+                        ],
+                        dtype=torch.int,
+                    )
+                else:
+                    continue
+
+                if result[self.around_period_num]["symbol"] in self.SymbolClassToIndex:
+                    target_single_class = signal.new_full(
+                        (),
+                        self.SymbolClassToIndex[
+                            result[self.around_period_num]["symbol"]
+                        ],
+                        dtype=torch.int,
+                    )
+                else:
+                    target_single_class = signal.new_full((), 0, dtype=torch.int)
 
             attention_mask = signal.new_zeros(
                 (self.total_size, self.total_size), dtype=torch.bool
@@ -368,7 +380,7 @@ class MITBIHDataset(BaseDataset):
 
             for i, res in enumerate(result):
                 for wave_name, start, end in res["waves"]:
-                    wave_index = MITBIHDataset.ECGWaveToIndex[wave_name]
+                    wave_index = self.ECGWaveToIndex[wave_name]
                     start_percent, start = modf(start / self.token_size)
                     end_percent, end = modf(end / self.token_size)
                     start = int(start) - start_token + 1
@@ -394,7 +406,8 @@ class MITBIHDataset(BaseDataset):
                         "signal_embedding": signal_embedding,
                         "position_embedding": position_embedding,
                         "wave_embedding": wave_embedding,
-                        "symbol_target": symbol_target,
+                        "target": target,
+                        "target_single_class": target_single_class,
                         # "aux_note": cur_aux_note,
                     }
                 )

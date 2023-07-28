@@ -4,6 +4,8 @@ import torch
 from torch import nn
 from torch.nn import functional as F
 
+from datasets.mit_bih.mit_bih import MITBIHDataset
+
 from .ecg_transformer import ECGTransformer
 
 
@@ -11,8 +13,8 @@ class CLEP(ECGTransformer):
     def __init__(
         self,
         *args,
+        threshold=0.5,
         waves="PRT",
-        symbols="LRVA",
         normalize_loss: bool = True,
         symbol_embedding_dim=1536,
         symbol_embedding_path=None,
@@ -20,8 +22,8 @@ class CLEP(ECGTransformer):
     ):
         super().__init__(*args, **kwargs)
 
+        self.threshold = threshold
         self.waves = waves
-        self.symbols = symbols
         self.normalize_loss = normalize_loss
 
         self.symbol_embedding = pickle.load(open(symbol_embedding_path, "rb"))
@@ -60,7 +62,7 @@ class CLEP(ECGTransformer):
             cur_pred = []
             for lead_ind, lead in enumerate(leads):
                 cur_p = []
-                for symbol in self.symbols:
+                for symbol in MITBIHDataset.SymbolSuperClasses:
                     cur_x = []
                     symbol_embedding = []
                     for i, wave in enumerate(self.waves):
@@ -93,12 +95,38 @@ class CLEP(ECGTransformer):
         # b, s, c: batch_size, symbol_num, lead_num
         pred = torch.stack(pred, dim=0)
 
-        target = data["symbol_target"][..., None]
+        target = data["target"][..., None]
         if self.multi_label:
             target = target.expand(-1, -1, x.shape[1])
-            loss = self.loss(pred.sigmoid(), target.to(pred.dtype))
+            pred = pred.sigmoid()
+            loss = self.loss(pred, target.to(pred.dtype))
+            # super_class_pred = torch.zeros_like(target, dtype=pred.dtype)
+            # for batch_ind in range(target.shape[0]):
+            #     for lead_ind in range(target.shape[2]):
+            #         for symbol_ind in range(target.shape[1]):
+            #             if pred[batch_ind, symbol_ind, lead_ind] > self.threshold:
+            #                 symbol = MITBIHDataset.SymbolClasses[symbol_ind]
+            #                 super_symbol_ind = (
+            #                     MITBIHDataset.SymbolClassToSuperClassIndex[symbol]
+            #                 )
+            #                 super_class_pred[
+            #                     batch_ind, super_symbol_ind, lead_ind
+            #                 ] = pred[batch_ind, symbol_ind, lead_ind]
         else:
             target = target.expand(-1, x.shape[1])
             loss = self.loss(pred, target)
+            # pred, pred_ind = pred.max(dim=1)
+            # super_class_pred = pred.new_zeros(
+            #     target.shape[0], MITBIHDataset.SymbolSuperClassesNum, target.shape[1]
+            # )
+            # for batch_ind in range(target.shape[0]):
+            #     for lead_ind in range(target.shape[2]):
+            #         symbol = MITBIHDataset.SymbolClasses[pred_ind[batch_ind, lead_ind]]
+            #         super_symbol_ind = MITBIHDataset.SymbolClassToSuperClassIndex[
+            #             symbol
+            #         ]
+            #         super_class_pred[batch_ind, super_symbol_ind, lead_ind] = pred[
+            #             batch_ind, lead_ind
+            #         ]
 
         return {"log_dict": {"loss": loss}, "pred": pred, "target": target}

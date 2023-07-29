@@ -55,7 +55,7 @@ class CLEP(ECGTransformer):
         x = self.fc(
             # b * c, w, d: batch_size * lead_num, cls_token_num, embedding_dim
             self.transformer_forward(x, data["attention_mask"])[:, : self.cls_token_num]
-        ).reshape(*x.shape[:2], len(self.waves), -1)
+        ).reshape(*x.shape[:2], self.cls_token_num, -1)
 
         pred = []
         for batch_ind, leads in enumerate(data["signal_name"]):

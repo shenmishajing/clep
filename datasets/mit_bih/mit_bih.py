@@ -55,6 +55,7 @@ class MITBIHDataset(BaseDataset):
         data_size=512,
         around_period_num=1,
         multi_label=False,
+        wave_num_cls_token=True,
         signal_names=["MLII", "V1", "V2", "V4", "V5"],
         ecg_process_method="dwt",
         **kwargs,
@@ -68,7 +69,9 @@ class MITBIHDataset(BaseDataset):
             signal_name: i for i, signal_name in enumerate(signal_names)
         }
         self.ecg_process_method = ecg_process_method
-        self.total_size = self.ECGWaveNum + self.data_size
+        self.wave_num_cls_token = wave_num_cls_token
+        self.cls_token_num = self.ECGWaveNum if wave_num_cls_token else 1
+        self.total_size = self.cls_token_num + self.data_size
 
         if data_prefix is None:
             data_prefix = dict(data_path="", ann_path="", cache_path="cache")
@@ -326,6 +329,30 @@ class MITBIHDataset(BaseDataset):
 
             wave_embedding = signal.new_zeros((self.total_size, self.ECGWaveNum))
 
+            attention_mask = signal.new_zeros(
+                (self.total_size, self.total_size), dtype=torch.bool
+            )
+            attention_mask[:, self.cls_token_num + data_length :] = True
+            # attention_mask[: self.cls_token_num] = True
+
+            for i, res in enumerate(result):
+                for wave_name, start, end in res["waves"]:
+                    wave_index = self.ECGWaveToIndex[wave_name]
+                    start_percent, start = modf(start / self.token_size)
+                    end_percent, end = modf(end / self.token_size)
+                    start = int(start) - start_token + self.cls_token_num
+                    end = int(end) - start_token + self.cls_token_num
+
+                    if start == end:
+                        wave_embedding[start, wave_index] = end_percent - start_percent
+                    else:
+                        wave_embedding[start, wave_index] = 1 - start_percent
+                        wave_embedding[start + 1 : end, wave_index] = 1
+                        wave_embedding[end, wave_index] = end_percent
+
+                    if i == self.around_period_num:
+                        attention_mask[wave_index, start : end + 1] = False
+
             if self.multi_label:
                 target = signal.new_zeros((self.SymbolSuperClassesNum), dtype=torch.int)
                 if (
@@ -371,30 +398,6 @@ class MITBIHDataset(BaseDataset):
                     )
                 else:
                     target_single_class = signal.new_full((), 0, dtype=torch.int)
-
-            attention_mask = signal.new_zeros(
-                (self.total_size, self.total_size), dtype=torch.bool
-            )
-            attention_mask[:, self.ECGWaveNum + data_length :] = True
-            attention_mask[: self.ECGWaveNum] = True
-
-            for i, res in enumerate(result):
-                for wave_name, start, end in res["waves"]:
-                    wave_index = self.ECGWaveToIndex[wave_name]
-                    start_percent, start = modf(start / self.token_size)
-                    end_percent, end = modf(end / self.token_size)
-                    start = int(start) - start_token + 1
-                    end = int(end) - start_token + 1
-
-                    if start == end:
-                        wave_embedding[start, wave_index] = end_percent - start_percent
-                    else:
-                        wave_embedding[start, wave_index] = 1 - start_percent
-                        wave_embedding[start + 1 : end, wave_index] = 1
-                        wave_embedding[end, wave_index] = end_percent
-
-                    if i == self.around_period_num:
-                        attention_mask[wave_index, start : end + 1] = False
 
             if not ((~attention_mask).sum(-1) == 0).any():
                 data_list.append(

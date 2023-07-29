@@ -51,10 +51,10 @@ class CLEP(ECGTransformer):
         # b, c, l, d: batch_size, lead_num, seq_len, embedding_dim
         x = self.embedding(data)
 
-        # b, c, w, d: batch_size, lead_num, wave_kind_num, embedding_dim
+        # b, c, w, d: batch_size, lead_num, cls_token_num, embedding_dim
         x = self.fc(
-            # b * c, w, d: batch_size * lead_num, wave_kind_num, embedding_dim
-            self.transformer_forward(x, data["attention_mask"])[:, : self.wave_kind_num]
+            # b * c, w, d: batch_size * lead_num, cls_token_num, embedding_dim
+            self.transformer_forward(x, data["attention_mask"])[:, : self.cls_token_num]
         ).reshape(*x.shape[:2], len(self.waves), -1)
 
         pred = []
@@ -63,21 +63,31 @@ class CLEP(ECGTransformer):
             for lead_ind, lead in enumerate(leads):
                 cur_p = []
                 for symbol in MITBIHDataset.SymbolSuperClasses:
-                    cur_x = []
                     symbol_embedding = []
                     for i, wave in enumerate(self.waves):
                         if wave in self.symbol_embedding[lead][symbol]:
-                            # d: embedding_dim
-                            cur_x.append(x[batch_ind, lead_ind, i, :])
                             # d: embedding_dim
                             symbol_embedding.append(
                                 self.symbol_embedding[lead][symbol][wave]
                             )
 
-                    # w * d: wave_kind_num * embedding_dim
-                    cur_x = torch.cat(cur_x, dim=-1)
-                    # w * d: wave_kind_num * embedding_dim
-                    symbol_embedding = torch.cat(symbol_embedding, dim=-1)
+                    if self.wave_num_cls_token:
+                        cur_x = []
+                        for i, wave in enumerate(self.waves):
+                            if wave in self.symbol_embedding[lead][symbol]:
+                                # d: embedding_dim
+                                cur_x.append(x[batch_ind, lead_ind, i, :])
+
+                        # w * d: wave_kind_num * embedding_dim
+                        cur_x = torch.cat(cur_x, dim=-1)
+
+                        # w * d: wave_kind_num * embedding_dim
+                        symbol_embedding = torch.cat(symbol_embedding, dim=-1)
+                    else:
+                        # d: embedding_dim
+                        cur_x = x[batch_ind, lead_ind, 0, :]
+                        # d: embedding_dim
+                        symbol_embedding = torch.stack(symbol_embedding).mean(0)
 
                     if self.normalize_loss:
                         cur_x = F.normalize(cur_x, dim=-1)

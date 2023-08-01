@@ -49,12 +49,12 @@ class CLEP(ECGTransformer):
 
     def forward(self, data):
         # b, c, l, d: batch_size, lead_num, seq_len, embedding_dim
-        x = self.embedding(data)
+        x, attention_mask = self.embedding(data)
 
         # b, c, w, d: batch_size, lead_num, cls_token_num, embedding_dim
         x = self.fc(
             # b * c, w, d: batch_size * lead_num, cls_token_num, embedding_dim
-            self.transformer_forward(x, data["attention_mask"])[:, : self.cls_token_num]
+            self.transformer_forward(x, attention_mask)[:, : self.cls_token_num]
         ).reshape(*x.shape[:2], self.cls_token_num, -1)
 
         pred = []

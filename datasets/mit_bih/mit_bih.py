@@ -9,10 +9,10 @@ from queue import Queue
 import numpy as np
 import psutil
 import torch
-import tqdm
 from mmengine.dataset import BaseDataset
 from mmengine.fileio import list_from_file
 from torch.utils.data._utils.collate import collate, default_collate_fn_map
+from tqdm import tqdm
 
 from .ecg_utils import load_ann, load_record, load_wave_ann
 
@@ -51,11 +51,11 @@ class MITBIHDataset(BaseDataset):
     def __init__(
         self,
         data_prefix=None,
-        token_size=4,
-        data_size=512,
-        around_period_num=1,
+        token_size=1,
+        data_size=1024,
+        around_period_num=0,
+        wave_fliter=True,
         multi_label=False,
-        wave_num_cls_token=True,
         signal_names=["MLII", "V1", "V2", "V4", "V5"],
         ecg_process_method="dwt",
         **kwargs,
@@ -64,14 +64,12 @@ class MITBIHDataset(BaseDataset):
         self.data_size = data_size
         self.around_period_num = around_period_num
         self.period_num = around_period_num * 2 + 1
+        self.wave_fliter = wave_fliter
         self.multi_label = multi_label
         self.signal_names = {
             signal_name: i for i, signal_name in enumerate(signal_names)
         }
         self.ecg_process_method = ecg_process_method
-        self.wave_num_cls_token = wave_num_cls_token
-        self.cls_token_num = self.ECGWaveNum if wave_num_cls_token else 1
-        self.total_size = self.cls_token_num + self.data_size
 
         if data_prefix is None:
             data_prefix = dict(data_path="", ann_path="", cache_path="cache")
@@ -174,7 +172,7 @@ class MITBIHDataset(BaseDataset):
             num_processes = min(num_processes, len(data_list))
 
             pool = multiprocessing.Pool(num_processes)
-            bar = tqdm.tqdm(total=len(data_list))
+            bar = tqdm(total=len(data_list))
 
             for name in data_list:
                 pool.apply_async(
@@ -187,7 +185,7 @@ class MITBIHDataset(BaseDataset):
             pool.close()
             pool.join()
         else:
-            for name in tqdm.tqdm(data_list):
+            for name in tqdm(data_list):
                 func(name, cache_path, **kwargs)
 
     @staticmethod
@@ -302,6 +300,25 @@ class MITBIHDataset(BaseDataset):
             if end_token - start_token > self.data_size:
                 continue
 
+            wave_embedding = signal.new_zeros((self.data_size, self.ECGWaveNum))
+            for res in result:
+                for wave_name, start, end in res["waves"]:
+                    wave_index = self.ECGWaveToIndex[wave_name]
+                    start_percent, start = modf(start / self.token_size)
+                    end_percent, end = modf(end / self.token_size)
+                    start = int(start) - start_token
+                    end = int(end) - start_token
+
+                    if start == end:
+                        wave_embedding[start, wave_index] = end_percent - start_percent
+                    else:
+                        wave_embedding[start, wave_index] = 1 - start_percent
+                        wave_embedding[start + 1 : end, wave_index] = 1
+                        wave_embedding[end, wave_index] = end_percent
+
+            if self.wave_fliter and (wave_embedding.sum(0) == 0).any():
+                continue
+
             cur_signal = signal[:, start_token:end_token, ...]
             data_length = cur_signal.shape[1]
             cur_signal = torch.cat(
@@ -322,36 +339,12 @@ class MITBIHDataset(BaseDataset):
             for sig_index, sig_name in enumerate(record.sig_name):
                 signal_embedding[sig_index] = self.signal_names[sig_name]
 
-            position_embedding = torch.arange(0, self.total_size, device=signal.device)
-            position_embedding = (
-                position_embedding - result[self.around_period_num]["peak"]
+            peak_position = signal.new_full(
+                (), result[self.around_period_num]["peak"] - result[0]["period"][0]
             )
 
-            wave_embedding = signal.new_zeros((self.total_size, self.ECGWaveNum))
-
-            attention_mask = signal.new_zeros(
-                (self.total_size, self.total_size), dtype=torch.bool
-            )
-            attention_mask[:, self.cls_token_num + data_length :] = True
-            # attention_mask[: self.cls_token_num] = True
-
-            for i, res in enumerate(result):
-                for wave_name, start, end in res["waves"]:
-                    wave_index = self.ECGWaveToIndex[wave_name]
-                    start_percent, start = modf(start / self.token_size)
-                    end_percent, end = modf(end / self.token_size)
-                    start = int(start) - start_token + self.cls_token_num
-                    end = int(end) - start_token + self.cls_token_num
-
-                    if start == end:
-                        wave_embedding[start, wave_index] = end_percent - start_percent
-                    else:
-                        wave_embedding[start, wave_index] = 1 - start_percent
-                        wave_embedding[start + 1 : end, wave_index] = 1
-                        wave_embedding[end, wave_index] = end_percent
-
-                    if i == self.around_period_num:
-                        attention_mask[wave_index, start : end + 1] = False
+            attention_mask = signal.new_zeros((self.data_size,), dtype=torch.bool)
+            attention_mask[data_length:] = True
 
             if self.multi_label:
                 target = signal.new_zeros((self.SymbolSuperClassesNum), dtype=torch.int)
@@ -399,20 +392,19 @@ class MITBIHDataset(BaseDataset):
                 else:
                     target_single_class = signal.new_full((), 0, dtype=torch.int)
 
-            if not ((~attention_mask).sum(-1) == 0).any():
-                data_list.append(
-                    {
-                        "name": name,
-                        "signal": cur_signal,
-                        "attention_mask": attention_mask,
-                        "signal_name": record.sig_name,
-                        "signal_embedding": signal_embedding,
-                        "position_embedding": position_embedding,
-                        "wave_embedding": wave_embedding,
-                        "target": target,
-                        "target_single_class": target_single_class,
-                        # "aux_note": cur_aux_note,
-                    }
-                )
+            data_list.append(
+                {
+                    "name": name,
+                    "signal": cur_signal,
+                    "attention_mask": attention_mask,
+                    "signal_name": record.sig_name,
+                    "signal_embedding": signal_embedding,
+                    "peak_position": peak_position,
+                    "wave_embedding": wave_embedding,
+                    "target": target,
+                    "target_single_class": target_single_class,
+                    # "aux_note": cur_aux_note,
+                }
+            )
 
         return data_list

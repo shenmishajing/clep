@@ -13,6 +13,7 @@ class ECGTransformer(nn.Module):
         wave_kind_num=3,
         signal_kind_num=5,
         wave_num_cls_token=True,
+        wave_attention=True,
         embedding_dim=32,
         num_classes=5,
         multi_label=False,
@@ -25,6 +26,7 @@ class ECGTransformer(nn.Module):
         self.wave_num_cls_token = wave_num_cls_token
         self.cls_token_num = wave_kind_num if wave_num_cls_token else 1
         self.embedding_dim = embedding_dim
+        self.wave_attention = wave_attention
         self.multi_label = multi_label
         self.num_classes = num_classes
 
@@ -48,19 +50,80 @@ class ECGTransformer(nn.Module):
         xavier_uniform_(self.cls_tokens)
 
     def embedding(self, data):
-        x = self.token_embedding(data["signal"])
+        x = data["signal"]
+        x = x.reshape(*x.shape[:2], -1, self.token_size)
+        x = self.token_embedding(x)
         x = torch.cat(
             [self.cls_tokens[None, None].expand(*x.shape[:2], -1, -1), x], dim=-2
         )
-        wave_embedding = self.wave_embedding(data["wave_embedding"])[:, None].expand_as(
-            x
+
+        attention_mask = data["attention_mask"]
+        attention_mask = (
+            attention_mask.reshape(*attention_mask.shape[:1], -1, self.token_size)
+            .sum(-1)
+            .to(torch.bool)
         )
+        attention_mask = torch.cat(
+            [
+                attention_mask.new_zeros((attention_mask.shape[0], self.cls_token_num)),
+                attention_mask,
+            ],
+            -1,
+        )
+        attention_mask = attention_mask[..., None].repeat(
+            (1, 1, attention_mask.shape[-1])
+        )
+
+        wave_embedding = data["wave_embedding"]
+        wave_embedding = wave_embedding.reshape(
+            *wave_embedding.shape[:1], -1, self.token_size, self.wave_kind_num
+        ).mean(-2)
+
+        if self.wave_attention:
+            attention_mask[:, : self.cls_token_num] = True
+            for i in range(self.cls_token_num):
+                if self.wave_num_cls_token:
+                    wave_kind = wave_embedding[:, :, i]
+                else:
+                    wave_kind = wave_embedding.sum(-1)
+                attention_mask[:, i, i] = False
+                attention_mask[:, i, self.cls_token_num :] = wave_kind == 0
+
+        if self.wave_num_cls_token:
+            wave_embedding = torch.cat(
+                [
+                    torch.eye(
+                        self.cls_token_num,
+                        dtype=wave_embedding.dtype,
+                        device=wave_embedding.device,
+                    )[None].expand(*wave_embedding.shape[:1], -1, -1),
+                    wave_embedding,
+                ],
+                dim=-2,
+            )
+        else:
+            wave_embedding = torch.cat(
+                [
+                    wave_embedding.new_ones(
+                        [
+                            wave_embedding.shape[0],
+                            self.cls_token_num,
+                            wave_embedding.shape[-1],
+                        ]
+                    ),
+                    wave_embedding,
+                ],
+                dim=-2,
+            )
+        wave_embedding = self.wave_embedding(wave_embedding)[:, None].expand_as(x)
         signal_embedding = self.signal_embedding(data["signal_embedding"])[
             ..., None, :
         ].expand_as(x)
 
         pos_embedding = x.new_zeros([x.shape[0], *x.shape[-2:]])
-        position = data["position_embedding"][..., None]
+
+        position = torch.arange(0, x.shape[-2], device=x.device)
+        position = position[None, :, None] - data["peak_position"][:, None, None]
         div_term = torch.exp(
             torch.arange(0, x.shape[-1], 2, device=x.device)
             * -(math.log(10000.0) / x.shape[-1])
@@ -71,7 +134,7 @@ class ECGTransformer(nn.Module):
 
         x = torch.cat([x, wave_embedding, signal_embedding, pos_embedding], dim=-1)
 
-        return x
+        return x, attention_mask
 
     def transformer_forward(self, x, attention_mask):
         return self.ecg_encoder(
@@ -84,8 +147,8 @@ class ECGTransformer(nn.Module):
         )
 
     def forward(self, data):
-        x = self.embedding(data)
-        x = self.transformer_forward(x, data["attention_mask"])[
+        x, attention_mask = self.embedding(data)
+        x = self.transformer_forward(x, attention_mask)[
             :, : self.cls_token_num
         ].reshape(*x.shape[:2], -1)
 

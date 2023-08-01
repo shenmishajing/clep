@@ -146,6 +146,7 @@ class ResNet1D(nn.Module):
     def __init__(
         self,
         arch: str = "res18",
+        in_channels: int = 1,
         num_classes: int = 1000,
         multi_label=False,
         zero_init_residual: bool = False,
@@ -180,7 +181,7 @@ class ResNet1D(nn.Module):
         self.groups = groups
         self.base_width = width_per_group
         self.conv1 = nn.Conv1d(
-            4, self.inplanes, kernel_size=7, stride=2, padding=3, bias=False
+            in_channels, self.inplanes, kernel_size=7, stride=2, padding=3, bias=False
         )
         self.bn1 = norm_layer(self.inplanes)
         self.relu = nn.ReLU(inplace=True)

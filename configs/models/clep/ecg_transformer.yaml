@@ -12,6 +12,7 @@ model:
                             init_args:
                                 d_model: 128
                                 nhead: 16
+                                activation: relu
                                 batch_first: true
                         num_layers: 2
                 token_size: 4

@@ -45,8 +45,6 @@ def main():
                     if len(cur_symbol) != 1:
                         continue
                     cur_symbol = symbol[cur_symbol[0]]
-                    if cur_symbol not in ["N", "L", "R", "V", "A"]:
-                        continue
 
                     period_len.append(
                         (end_token - start_token + 1, cur_res, name, cur_name)

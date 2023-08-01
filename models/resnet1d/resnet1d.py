@@ -300,3 +300,25 @@ class ResNet1D(nn.Module):
             loss = self.loss(pred, target)
 
         return {"log_dict": {"loss": loss}, "pred": pred, "target": target}
+
+
+class ResNet1DEncoder(ResNet1D):
+    def __init__(self, *args, **kwargs) -> None:
+        super().__init__(*args, **kwargs)
+        self.fc = None
+
+    def forward(self, x):
+        # See note [TorchScript super()]
+        batch_size, single_num = x.shape[:2]
+        x = x.reshape(batch_size * single_num, -1, self.conv1.in_channels).mT
+        x = self.conv1(x)
+        x = self.bn1(x)
+        x = self.relu(x)
+        x = self.maxpool(x)
+
+        x = self.layer1(x)
+        x = self.layer2(x)
+        x = self.layer3(x)
+        x = self.layer4(x)
+
+        return x.reshape(batch_size, single_num, *x.shape[-2:]).mT

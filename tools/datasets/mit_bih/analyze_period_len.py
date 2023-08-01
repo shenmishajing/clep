@@ -19,7 +19,9 @@ def main():
         name = name.strip()
         ann = load_ann(data_path, name)
         wave_ann = pickle.load(
-            open(os.path.join(data_path, "dwt_cache", name) + ".pkl", "rb")
+            open(
+                os.path.join(data_path, "cache/wave_ann_cache/dwt", name) + ".pkl", "rb"
+            )
         )
 
         symbol = {i: symbol for i, symbol in zip(ann.sample, ann.symbol)}

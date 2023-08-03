@@ -6,6 +6,7 @@ from time import sleep
 import torch
 from openai import InvalidRequestError
 
+from datasets.tianchi.tianchi import TianChiDataset
 from utils import openai
 
 
@@ -27,8 +28,8 @@ def get_llm_results(messages, model="gpt-3.5-turbo", temperature=0):
                 raise e
         except Exception as e:
             try_num += 1
-            print(f"error: {e}, try num: {try_num}, retry after {try_num+10} min")
-            sleep((try_num + 10) * 60)
+            print(f"error: {e}, try num: {try_num}, retry after {try_num} min")
+            sleep(try_num * 60)
 
 
 def get_symbol_raw_description(data_root, leads, symbols):
@@ -132,49 +133,72 @@ def get_symbol_embedding(data_root):
 
 
 def main():
-    data_root = "data/mit-bih-arrhythmia-database-1.0.0/symbols_chatgpt"
-    leads = ["MLII", "V1", "V2", "V4", "V5"]
-    symbols = {
-        "N": "Normal beat",
-        "SVEB": "Supraventricular ectopic beat",
-        "VEB": "Ventricular ectopic beat",
-        "F": "Fusion beat",
+    data_info = {
+        "mit-bih": {
+            "data_root": "data/mit-bih-arrhythmia-database-1.0.0/symbols_chatgpt",
+            "leads": ["MLII", "V1", "V2", "V4", "V5"],
+            "symbols": {
+                "N": "Normal beat",
+                "SVEB": "Supraventricular ectopic beat",
+                "VEB": "Ventricular ectopic beat",
+                "F": "Fusion beat",
+            },
+            # "symbols": {
+            #     # N
+            #     "N": "Normal beat",
+            #     "L": "Left bundle branch block beat",
+            #     "R": "Right bundle branch block beat",
+            #     "e": "Atrial escape beat",
+            #     "j": "Nodal (junctional) escape beat",
+            #     # SVEB
+            #     "A": "Atrial premature beat",
+            #     "a": "Aberrated atrial premature beat",
+            #     "J": "Nodal (junctional) premature beat",
+            #     "S": "Supraventricular premature",
+            #     # VE
+            #     "V": "Premature ventricular contraction",
+            #     "E": "Ventricular escape beat",
+            #     # F
+            #     "F": "Fusion of ventricular and normal beat",
+            #     # Q
+            #     "f": "Fusion of paced and normal beat",
+            #     # "Q": "Unclassifiable beat",
+            #     # # other
+            #     # "[": "Start of ventricular flutter/fibrillation",
+            #     # "!": "Ventricular flutter wave",
+            #     # "]": "End of ventricular flutter/fibrillation",
+            #     # "/": "Paced beat",
+            #     # "x": "Non-conducted P-wave (blocked APC)",
+            #     # "|": "Isolated QRS-like artifact",
+            # },
+        },
+        "tianchi": {
+            "data_root": "data/tianchi/symbols_chatgpt",
+            "leads": TianChiDataset.SignalNames,
+            "symbols": None,
+        },
     }
-    # symbols = {
-    #     # N
-    #     "N": "Normal beat",
-    #     "L": "Left bundle branch block beat",
-    #     "R": "Right bundle branch block beat",
-    #     "e": "Atrial escape beat",
-    #     "j": "Nodal (junctional) escape beat",
-    #     # SVEB
-    #     "A": "Atrial premature beat",
-    #     "a": "Aberrated atrial premature beat",
-    #     "J": "Nodal (junctional) premature beat",
-    #     "S": "Supraventricular premature",
-    #     # VE
-    #     "V": "Premature ventricular contraction",
-    #     "E": "Ventricular escape beat",
-    #     # F
-    #     "F": "Fusion of ventricular and normal beat",
-    #     # Q
-    #     "f": "Fusion of paced and normal beat",
-    #     # "Q": "Unclassifiable beat",
-    #     # # other
-    #     # "[": "Start of ventricular flutter/fibrillation",
-    #     # "!": "Ventricular flutter wave",
-    #     # "]": "End of ventricular flutter/fibrillation",
-    #     # "/": "Paced beat",
-    #     # "x": "Non-conducted P-wave (blocked APC)",
-    #     # "|": "Isolated QRS-like artifact",
-    # }
 
-    os.makedirs(data_root, exist_ok=True)
-    get_symbol_raw_description(data_root, leads, symbols)
-    get_symbol_description(data_root)
-    get_symbol_sentence(data_root)
-    get_symbol_raw_embedding(data_root)
-    get_symbol_embedding(data_root)
+    with open("data/tianchi/ann/round_all/class_names.txt") as f:
+        class_names = [line.strip() for line in f.readlines() if line]
+        data_info["tianchi"]["symbols"] = {
+            class_name: class_name for class_name in class_names
+        }
+
+    names = ["tianchi"]
+
+    if names is None:
+        names = data_info
+    for name in names:
+        info = data_info[name]
+        print(f"process {name}")
+
+        os.makedirs(info["data_root"], exist_ok=True)
+        get_symbol_raw_description(info["data_root"], info["leads"], info["symbols"])
+        get_symbol_description(info["data_root"])
+        get_symbol_sentence(info["data_root"])
+        get_symbol_raw_embedding(info["data_root"])
+        get_symbol_embedding(info["data_root"])
 
 
 if __name__ == "__main__":

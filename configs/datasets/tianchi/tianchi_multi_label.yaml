@@ -1,0 +1,206 @@
+__import__:
+    task: &task multilabel
+    num_classes: &num_classes 55
+    labels: &labels
+        - QRS低电压
+        - QT间期延长
+        - ST-T改变
+        - ST段改变
+        - T波改变
+        - 一度房室传导阻滞
+        - 下壁异常Q波
+        - 不完全性右束支传导阻滞
+        - 临界ECG
+        - 二联律
+        - 前间壁R波递增不良
+        - 双分支传导阻滞
+        - 右心室肥大
+        - 右心房扩大
+        - 右束支传导阻滞
+        - 复极化异常
+        - 完全性右束支传导阻滞
+        - 完全性左束支传导阻滞
+        - 室上性早搏
+        - 室内差异性传导
+        - 室性早搏
+        - 左前分支传导阻滞
+        - 左心室肥大
+        - 左心室高电压
+        - 左束支传导阻滞
+        - 差异性传导
+        - 异常ECG
+        - 心房颤动
+        - 快室率心房颤动
+        - 快心室率
+        - 慢心室率
+        - 房室传导延缓
+        - 房性早搏
+        - 早期复极化
+        - 未下传的房性早搏
+        - 正常ECG
+        - 电轴右偏
+        - 电轴左偏
+        - 短PR间期
+        - 短串房性心动过速
+        - 窦性心动过缓
+        - 窦性心动过速
+        - 窦性心律
+        - 窦性心律不齐
+        - 肺型P波
+        - 肺心病型
+        - 融合波
+        - 起搏心律
+        - 逆钟向转位
+        - 非特异性ST段与T波异常
+        - 非特异性ST段异常
+        - 非特异性T波异常
+        - 非特异性室内传导延迟
+        - 非特异性室内传导阻滞
+        - 顺钟向转位
+
+data:
+    class_path: lightning_template.LightningDataModule
+    init_args:
+        dataset_cfg:
+            split_info:
+                split_format_to: [ann_file]
+            fit:
+                class_path: datasets.TianChiDataset
+                init_args:
+                    ann_file: ann/round_all/${split}.csv
+                    data_root: data/tianchi
+                    ecg_process_method: dwt
+                    total_record: True
+                    around_period_num: 0
+                    data_size: null
+                    wave_fliter: false
+        dataloader_cfg:
+            batch_size: 32
+            num_workers: 4
+            persistent_workers: true
+            prefetch_factor: 2
+            pin_memory: true
+
+model:
+    init_args:
+        evaluator_cfg:
+            class_path: torchmetrics.MetricCollection
+            init_args:
+                metrics:
+                    acc:
+                        class_path: torchmetrics.Accuracy
+                        init_args:
+                            task: *task
+                            num_labels: *num_classes
+                            average: micro
+                    F1:
+                        class_path: torchmetrics.F1Score
+                        init_args:
+                            task: *task
+                            num_labels: *num_classes
+                            average: macro
+                    percision:
+                        class_path: torchmetrics.Precision
+                        init_args:
+                            task: *task
+                            num_labels: *num_classes
+                            average: macro
+                    recall:
+                        class_path: torchmetrics.Recall
+                        init_args:
+                            task: *task
+                            num_labels: *num_classes
+                            average: macro
+                    PR-AUC:
+                        class_path: torchmetrics.AveragePrecision
+                        init_args:
+                            task: *task
+                            num_labels: *num_classes
+                            average: macro
+                    ROC-AUC:
+                        class_path: torchmetrics.AUROC
+                        init_args:
+                            task: *task
+                            num_labels: *num_classes
+                            average: macro
+                    acc_classwise:
+                        class_path: torchmetrics.ClasswiseWrapper
+                        init_args:
+                            prefix: acc_
+                            labels: *labels
+                            metric:
+                                class_path: torchmetrics.Accuracy
+                                init_args:
+                                    task: *task
+                                    num_labels: *num_classes
+                                    average: null
+                    F1_classwise:
+                        class_path: torchmetrics.ClasswiseWrapper
+                        init_args:
+                            prefix: F1_
+                            labels: *labels
+                            metric:
+                                class_path: torchmetrics.F1Score
+                                init_args:
+                                    task: *task
+                                    num_labels: *num_classes
+                                    average: null
+                    percision_classwise:
+                        class_path: torchmetrics.ClasswiseWrapper
+                        init_args:
+                            prefix: percision_
+                            labels: *labels
+                            metric:
+                                class_path: torchmetrics.Precision
+                                init_args:
+                                    task: *task
+                                    num_labels: *num_classes
+                                    average: null
+                    recall_classwise:
+                        class_path: torchmetrics.ClasswiseWrapper
+                        init_args:
+                            prefix: recall_
+                            labels: *labels
+                            metric:
+                                class_path: torchmetrics.Recall
+                                init_args:
+                                    task: *task
+                                    num_labels: *num_classes
+                                    average: null
+                    PR-AUC_classwise:
+                        class_path: torchmetrics.ClasswiseWrapper
+                        init_args:
+                            prefix: PR-AUC_
+                            labels: *labels
+                            metric:
+                                class_path: torchmetrics.AveragePrecision
+                                init_args:
+                                    task: *task
+                                    num_labels: *num_classes
+                                    average: null
+                    ROC-AUC_classwise:
+                        class_path: torchmetrics.ClasswiseWrapper
+                        init_args:
+                            prefix: ROC-AUC_
+                            labels: *labels
+                            metric:
+                                class_path: torchmetrics.AUROC
+                                init_args:
+                                    task: *task
+                                    num_labels: *num_classes
+                                    average: null
+
+trainer:
+    logger:
+        init_args:
+            tags:
+                pre_item:
+                    - *task
+                    - tianchi
+    callbacks:
+        change_item:
+            - - 0
+              - init_args:
+                    monitor: val/F1
+                    filename: "epoch:{epoch}-val_f1:{val/F1:.4g}.ckpt"
+                    mode: max

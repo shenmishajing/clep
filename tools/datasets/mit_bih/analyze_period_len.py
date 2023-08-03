@@ -10,9 +10,9 @@ from datasets.utils import find_index, load_ann
 def main():
     data_path = "data/mit-bih-arrhythmia-database-1.0.0"
 
-    around_period_num = 1
+    around_period_num = 0
     period_num = around_period_num * 2 + 1
-    token_size = 4
+    token_size = 1
     period_len = []
     for name in open(os.path.join(data_path, "RECORDS"), "r").readlines():
         name = name.strip()

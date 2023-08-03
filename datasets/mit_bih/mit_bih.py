@@ -39,6 +39,7 @@ class MITBIHDataset(CacheDataset):
         for n in name:
             SymbolClassToSuperClassIndex[n] = i
 
+    MaxLength = 650000
     ECGWaves = "PRT"
     ECGWaveToIndex = {name: i for i, name in enumerate(ECGWaves)}
     ECGWaveNum = len(ECGWaves)
@@ -122,7 +123,14 @@ class MITBIHDataset(CacheDataset):
         wave_ann = pickle.load(open(os.path.join(wave_ann_path, name + ".pkl"), "rb"))
         lead_name = sorted(
             [
-                (lead_name, min([len(x) for x in a.values()]))
+                (
+                    lead_name,
+                    0
+                    if a is None
+                    else min(
+                        [len([c for c in b if not np.isnan(c)]) for b in a.values()]
+                    ),
+                )
                 for lead_name, a in wave_ann.items()
             ],
             key=lambda x: x[1],
@@ -138,9 +146,12 @@ class MITBIHDataset(CacheDataset):
         wave_ann_filted = []
         result = Queue(period_num)
         inds = {wave: 0 for wave in MITBIHDataset.ECGWaves}
-        for i in range(1, len(symbol) - 1):
+        for i in range(len(symbol)):
             cur_res = {
-                "period": [symbol[i - 1][0], symbol[i + 1][0]],
+                "period": [
+                    0 if i == 0 else symbol[i - 1][0],
+                    MITBIHDataset.MaxLength if i == len(symbol) else symbol[i + 1][0],
+                ],
                 "symbol": symbol[i][1],
                 "peak": symbol[i][0],
                 "waves": [],

@@ -1,6 +1,8 @@
-__base__:
-    - ./mit_bih.yaml
-    - ../../metrics/classification_multi_label.yaml
+__import__:
+    task: &task multilabel
+    num_classes: &num_classes 3
+
+__base__: ./mit_bih.yaml
 
 data:
     init_args:
@@ -8,3 +10,78 @@ data:
             fit:
                 init_args:
                     multi_label: true
+
+model:
+    init_args:
+        evaluator_cfg:
+            init_args:
+                metrics:
+                    acc:
+                        init_args:
+                            task: *task
+                            num_labels: *num_classes
+                    F1:
+                        init_args:
+                            task: *task
+                            num_labels: *num_classes
+                    percision:
+                        init_args:
+                            task: *task
+                            num_labels: *num_classes
+                    recall:
+                        init_args:
+                            task: *task
+                            num_labels: *num_classes
+                    PR-AUC:
+                        init_args:
+                            task: *task
+                            num_labels: *num_classes
+                    ROC-AUC:
+                        init_args:
+                            task: *task
+                            num_labels: *num_classes
+                    acc_classwise:
+                        init_args:
+                            metric:
+                                init_args:
+                                    task: *task
+                                    num_labels: *num_classes
+                    F1_classwise:
+                        init_args:
+                            metric:
+                                init_args:
+                                    task: *task
+                                    num_labels: *num_classes
+                    percision_classwise:
+                        init_args:
+                            metric:
+                                init_args:
+                                    task: *task
+                                    num_labels: *num_classes
+                    recall_classwise:
+                        init_args:
+                            metric:
+                                init_args:
+                                    task: *task
+                                    num_labels: *num_classes
+                    PR-AUC_classwise:
+                        init_args:
+                            metric:
+                                init_args:
+                                    task: *task
+                                    num_labels: *num_classes
+                    ROC-AUC_classwise:
+                        init_args:
+                            metric:
+                                init_args:
+                                    task: *task
+                                    num_labels: *num_classes
+
+trainer:
+    logger:
+        init_args:
+            tags:
+                pre_item:
+                    change_item:
+                        - - 0
+                          - *task

@@ -48,7 +48,7 @@ class MITBIHDataset(CacheDataset):
         data_prefix=None,
         token_size=1,
         data_size=1024,
-        around_period_num=1,
+        around_period_num=0,
         wave_fliter=True,
         multi_label=False,
         signal_names=["MLII", "V1", "V2", "V4", "V5"],

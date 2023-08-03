@@ -12,6 +12,8 @@ data:
                     ann_file: ${split}.txt
                     data_root: data/mit-bih-arrhythmia-database-1.0.0
                     ecg_process_method: dwt
+                    around_period_num: 0
+                    data_size: 1024
         dataloader_cfg:
             batch_size: 32
             # num_workers: 8

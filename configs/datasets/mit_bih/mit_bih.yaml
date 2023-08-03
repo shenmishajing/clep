@@ -16,8 +16,8 @@ data:
                     data_size: 1024
         dataloader_cfg:
             batch_size: 32
-            # num_workers: 8
-            # persistent_workers: true
+            num_workers: 4
+            persistent_workers: true
             prefetch_factor: 2
             pin_memory: true
 

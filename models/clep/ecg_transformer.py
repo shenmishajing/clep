@@ -60,7 +60,7 @@ class ECGTransformer(nn.Module):
         attention_mask = data["attention_mask"]
         attention_mask = (
             attention_mask.reshape(*attention_mask.shape[:1], -1, self.token_size)
-            .sum(-1)
+            .min(-1)[0]
             .to(torch.bool)
         )
         attention_mask = torch.cat(
@@ -70,8 +70,8 @@ class ECGTransformer(nn.Module):
             ],
             -1,
         )
-        attention_mask = attention_mask[..., None].repeat(
-            (1, 1, attention_mask.shape[-1])
+        attention_mask = attention_mask[:, None].repeat(
+            (1, attention_mask.shape[-1], 1)
         )
 
         wave_embedding = data["wave_embedding"]

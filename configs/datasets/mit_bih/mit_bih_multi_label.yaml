@@ -8,3 +8,11 @@ data:
             fit:
                 init_args:
                     multi_label: true
+
+trainer:
+    logger:
+        init_args:
+            tags:
+                post_item:
+                    - mit_bih
+                    - multi_label

@@ -20,3 +20,9 @@ data:
             # persistent_workers: true
             prefetch_factor: 2
             pin_memory: true
+
+trainer:
+    logger:
+        init_args:
+            tags:
+                post_item: mit_bih

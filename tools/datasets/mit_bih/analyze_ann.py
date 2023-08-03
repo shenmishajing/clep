@@ -1,7 +1,7 @@
 import os
 from collections import defaultdict
 
-from datasets.mit_bih.ecg_utils import load_ann
+from datasets.utils import load_ann
 
 
 def main():

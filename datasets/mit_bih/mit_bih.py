@@ -1,5 +1,3 @@
-import copy
-import multiprocessing
 import os
 import pickle
 from collections import OrderedDict
@@ -7,17 +5,14 @@ from math import ceil, modf
 from queue import Queue
 
 import numpy as np
-import psutil
 import torch
-from mmengine.dataset import BaseDataset
 from mmengine.fileio import list_from_file
-from torch.utils.data._utils.collate import collate, default_collate_fn_map
-from tqdm import tqdm
 
-from .ecg_utils import load_ann, load_record, load_wave_ann
+from ..cache_dataset import CacheDataset
+from ..utils.ecg_utils import load_ann, load_record, load_wave_ann
 
 
-class MITBIHDataset(BaseDataset):
+class MITBIHDataset(CacheDataset):
     """
     MIT-BIH Arrhythmia dataset.
     """
@@ -53,7 +48,7 @@ class MITBIHDataset(BaseDataset):
         data_prefix=None,
         token_size=1,
         data_size=1024,
-        around_period_num=0,
+        around_period_num=1,
         wave_fliter=True,
         multi_label=False,
         signal_names=["MLII", "V1", "V2", "V4", "V5"],
@@ -74,7 +69,7 @@ class MITBIHDataset(BaseDataset):
         if data_prefix is None:
             data_prefix = dict(data_path="", ann_path="", cache_path="cache")
 
-        super().__init__(data_prefix=data_prefix, lazy_init=True, **kwargs)
+        super().__init__(data_prefix=data_prefix, **kwargs)
 
         self.cache_info = OrderedDict()
         self.cache_info["wave_ann"] = {
@@ -99,41 +94,6 @@ class MITBIHDataset(BaseDataset):
 
         self.full_init()
 
-    def parse_cache_info(self):
-        for cache_name, cache_info in self.cache_info.items():
-            cache_path = os.path.join(
-                self.data_prefix["cache_path"],
-                cache_name + "_cache",
-            )
-            if "path" in cache_info:
-                cache_info["path"] = os.path.join(cache_path, cache_info["path"])
-            else:
-                cache_info["path"] = cache_path
-
-            if "suffix" not in cache_info:
-                cache_info["suffix"] = "pkl"
-
-            if "func" not in cache_info:
-                cache_info["func"] = self.cache_func
-
-                if "kwargs" not in cache_info:
-                    cache_info["kwargs"] = {}
-
-                if "func" not in cache_info["kwargs"] and hasattr(
-                    self, "cache_" + cache_name
-                ):
-                    cache_info["kwargs"]["func"] = getattr(self, "cache_" + cache_name)
-
-            if "uncached" not in cache_info:
-                cache_info["uncached"] = []
-
-    @staticmethod
-    def collate_fn(batch):
-        collate_fn_map = copy.copy(default_collate_fn_map)
-        collate_fn_map[list] = lambda batch, collate_fn_map: batch
-
-        return collate(batch, collate_fn_map=collate_fn_map)
-
     def load_data_list(self):
         name_list = list_from_file(self.ann_file)
 
@@ -143,50 +103,6 @@ class MITBIHDataset(BaseDataset):
             data_list.extend(self.calculate_data(name))
 
         return data_list
-
-    def prepare_cache(self, name_list):
-        for name in name_list:
-            for info in self.cache_info.values():
-                if not os.path.exists(
-                    os.path.join(info["path"], name) + "." + info["suffix"]
-                ):
-                    info["uncached"].append(name)
-
-        for info in self.cache_info.values():
-            if info["uncached"]:
-                info["func"](
-                    info["uncached"],
-                    cache_path=info["path"],
-                    **info["kwargs"],
-                )
-
-                info["uncached"] = []
-
-    def cache_func(self, data_list, cache_path, func, num_processes=None, **kwargs):
-        os.makedirs(cache_path, exist_ok=True)
-
-        if num_processes is None:
-            num_processes = psutil.cpu_count(False)
-
-        if num_processes:
-            num_processes = min(num_processes, len(data_list))
-
-            pool = multiprocessing.Pool(num_processes)
-            bar = tqdm(total=len(data_list))
-
-            for name in data_list:
-                pool.apply_async(
-                    func,
-                    args=(name, cache_path),
-                    kwds=kwargs,
-                    callback=lambda *args, **kwargs: bar.update(1),
-                )
-
-            pool.close()
-            pool.join()
-        else:
-            for name in tqdm(data_list):
-                func(name, cache_path, **kwargs)
 
     @staticmethod
     def cache_wave_ann(name, cache_path, data_path, **kwargs):
@@ -205,7 +121,10 @@ class MITBIHDataset(BaseDataset):
         ann = load_ann(ann_path, name)
         wave_ann = pickle.load(open(os.path.join(wave_ann_path, name + ".pkl"), "rb"))
         lead_name = sorted(
-            [(lead_name, len(a)) for lead_name, a in wave_ann.items()],
+            [
+                (lead_name, min([len(x) for x in a.values()]))
+                for lead_name, a in wave_ann.items()
+            ],
             key=lambda x: x[1],
             reverse=True,
         )[0][0]

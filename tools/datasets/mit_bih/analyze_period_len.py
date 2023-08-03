@@ -4,8 +4,7 @@ from math import ceil
 
 import numpy as np
 
-from datasets.mit_bih.ecg_utils import load_ann
-from datasets.mit_bih.wave_utils import find_index
+from datasets.utils import find_index, load_ann
 
 
 def main():

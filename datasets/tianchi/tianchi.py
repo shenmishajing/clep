@@ -179,7 +179,7 @@ class TianChiDataset(CacheDataset):
                 "period": [
                     0 if i == 0 else wave_ann["ECG_T_Offsets"][i - 1],
                     TianChiDataset.MaxLength
-                    if i < len(wave_ann)
+                    if i == len(wave_ann) - 1
                     else wave_ann["ECG_P_Onsets"][i + 1],
                 ],
                 "peak": wave_ann["ECG_R_Peaks"][i],

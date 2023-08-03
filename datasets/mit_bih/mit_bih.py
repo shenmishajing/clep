@@ -150,7 +150,9 @@ class MITBIHDataset(CacheDataset):
             cur_res = {
                 "period": [
                     0 if i == 0 else symbol[i - 1][0],
-                    MITBIHDataset.MaxLength if i == len(symbol) else symbol[i + 1][0],
+                    MITBIHDataset.MaxLength
+                    if i == len(symbol) - 1
+                    else symbol[i + 1][0],
                 ],
                 "symbol": symbol[i][1],
                 "peak": symbol[i][0],

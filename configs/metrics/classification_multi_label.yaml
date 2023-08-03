@@ -69,3 +69,9 @@ model:
                                 init_args:
                                     task: *task
                                     num_labels: *num_classes
+
+trainer:
+    logger:
+        init_args:
+            tags:
+                pre_item: *task

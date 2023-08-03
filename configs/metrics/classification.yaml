@@ -113,6 +113,10 @@ model:
                                     average: null
 
 trainer:
+    logger:
+        init_args:
+            tags:
+                pre_item: *task
     callbacks:
         change_item:
             - - 0

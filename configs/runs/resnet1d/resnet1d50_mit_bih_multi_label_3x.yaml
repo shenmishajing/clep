@@ -1,0 +1,3 @@
+__base__:
+    - resnet1d50_mit_bih_multi_label_1x.yaml
+    - ../../schedules/schedule_3x.yaml

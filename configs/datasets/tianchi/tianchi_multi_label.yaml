@@ -75,7 +75,7 @@ data:
                     data_size: null
                     wave_fliter: false
         dataloader_cfg:
-            batch_size: 32
+            batch_size: 8
             num_workers: 4
             persistent_workers: true
             prefetch_factor: 2

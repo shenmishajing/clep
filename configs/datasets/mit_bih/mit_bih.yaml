@@ -18,6 +18,7 @@ data:
                     around_period_num: 0
                     data_size: 1024
                     wave_fliter: false
+                    debug_len: null
         dataloader_cfg:
             batch_size: 32
             num_workers: 4

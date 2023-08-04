@@ -6,6 +6,7 @@ from math import ceil, modf
 import numpy as np
 import torch
 from mmengine.fileio import list_from_file
+from tqdm import tqdm
 
 from ..cache_dataset import CacheDataset
 from ..utils.ecg_utils import load_ann, load_record, load_wave_ann
@@ -53,6 +54,7 @@ class MITBIHDataset(CacheDataset):
         multi_label=False,
         signal_names=["MLII", "V1", "V2", "V4", "V5"],
         ecg_process_method="dwt",
+        debug_len=None,
         **kwargs,
     ):
         self.token_size = token_size
@@ -65,6 +67,7 @@ class MITBIHDataset(CacheDataset):
             signal_name: i for i, signal_name in enumerate(signal_names)
         }
         self.ecg_process_method = ecg_process_method
+        self.debug_len = debug_len
 
         if data_prefix is None:
             data_prefix = dict(data_path="", ann_path="", cache_path="cache")
@@ -97,9 +100,12 @@ class MITBIHDataset(CacheDataset):
     def load_data_list(self):
         name_list = list_from_file(self.ann_file)
 
+        if self.debug_len is not None:
+            name_list = name_list[: self.debug_len]
+
         self.prepare_cache(name_list)
         data_list = []
-        for name in name_list:
+        for name in tqdm(self.name_list, desc="calculate data"):
             data_list.extend(self.calculate_data(name))
 
         return data_list

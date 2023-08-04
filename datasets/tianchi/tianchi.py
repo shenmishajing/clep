@@ -6,6 +6,7 @@ from math import ceil, modf
 import numpy as np
 import pandas as pd
 import torch
+from tqdm import tqdm
 
 from datasets.utils.ecg_utils import calculate_wave_ann
 
@@ -50,6 +51,7 @@ class TianChiDataset(CacheDataset):
         total_record=True,
         wave_fliter=True,
         ecg_process_method="dwt",
+        debug_len=None,
         **kwargs,
     ):
         self.token_size = token_size
@@ -61,6 +63,7 @@ class TianChiDataset(CacheDataset):
         )
         self.wave_fliter = wave_fliter
         self.ecg_process_method = ecg_process_method
+        self.debug_len = debug_len
 
         if data_prefix is None:
             data_prefix = dict(data_path="ecg", cache_path="cache")
@@ -105,6 +108,8 @@ class TianChiDataset(CacheDataset):
         self.ann = self.ann[["id"] + class_names]
 
         self.name_list = self.ann["id"].to_list()
+        if self.debug_len is not None:
+            self.name_list = self.name_list[: self.debug_len]
         self.ann = self.ann.set_index("id").to_dict("split")
         self.ann = {
             ind: torch.tensor(data, dtype=torch.int32)
@@ -116,7 +121,7 @@ class TianChiDataset(CacheDataset):
     def load_data_list(self):
         self.prepare_cache(self.name_list)
         data_list = []
-        for name in self.name_list:
+        for name in tqdm(self.name_list, desc="calculate data"):
             data_list.extend(self.calculate_data(name))
 
         return data_list

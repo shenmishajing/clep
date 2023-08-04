@@ -1,8 +1,7 @@
 import os
 import pickle
-from collections import OrderedDict
+from collections import OrderedDict, deque
 from math import ceil, modf
-from queue import Queue
 
 import numpy as np
 import torch
@@ -144,7 +143,7 @@ class MITBIHDataset(CacheDataset):
         )
 
         wave_ann_filted = []
-        result = Queue(period_num)
+        result = deque(maxlen=period_num)
         inds = {wave: 0 for wave in MITBIHDataset.ECGWaves}
         for i in range(len(symbol)):
             cur_res = {
@@ -201,11 +200,10 @@ class MITBIHDataset(CacheDataset):
                         inds[wave_name] += 1
                         cur_res["waves"].append([wave_name, start, end])
 
-            result.put(cur_res)
+            result.append(cur_res)
 
-            if result.full():
-                wave_ann_filted.append(list(result.queue))
-                result.get()
+            if len(result) == result.maxlen:
+                wave_ann_filted.append(list(result))
 
         pickle.dump(
             wave_ann_filted, open(os.path.join(cache_path, name) + ".pkl", "wb")

@@ -1,8 +1,7 @@
 import os
 import pickle
-from collections import OrderedDict
+from collections import OrderedDict, deque
 from math import ceil, modf
-from queue import Queue
 
 import numpy as np
 import pandas as pd
@@ -115,7 +114,7 @@ class TianChiDataset(CacheDataset):
         self.full_init()
 
     def load_data_list(self):
-        # self.prepare_cache(self.name_list)
+        self.prepare_cache(self.name_list)
         data_list = []
         for name in self.name_list:
             data_list.extend(self.calculate_data(name))
@@ -171,7 +170,7 @@ class TianChiDataset(CacheDataset):
         wave_ann = wave_ann[lead_name]
 
         wave_ann_filted = []
-        result = Queue(period_num)
+        result = deque(maxlen=period_num)
         for i in range(
             min([len([c for c in b if not np.isnan(c)]) for b in wave_ann.values()])
         ):
@@ -194,11 +193,23 @@ class TianChiDataset(CacheDataset):
                     ]
                 )
 
-            result.put(cur_res)
+            if any(
+                [
+                    np.isnan(x)
+                    for x in [
+                        *cur_res["period"],
+                        cur_res["peak"],
+                        *[x[1] for x in cur_res["waves"]],
+                        *[x[2] for x in cur_res["waves"]],
+                    ]
+                ]
+            ):
+                result.clear()
+            else:
+                result.append(cur_res)
 
-            if result.full():
-                wave_ann_filted.append(list(result.queue))
-                result.get()
+            if len(result) == result.maxlen:
+                wave_ann_filted.append(list(result))
 
         pickle.dump(
             wave_ann_filted, open(os.path.join(cache_path, name) + ".pkl", "wb")

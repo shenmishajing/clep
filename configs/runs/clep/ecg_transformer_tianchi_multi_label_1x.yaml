@@ -8,4 +8,5 @@ model:
     init_args:
         model:
             init_args:
+                signal_kind_num: 12
                 num_classes: 55

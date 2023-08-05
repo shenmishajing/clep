@@ -73,7 +73,7 @@ data:
                     # total_record: false
                     # data_size: 3072
                     total_record: true
-                    data_size: 5024
+                    data_size: null
                     around_period_num: 0
                     wave_fliter: false
                     debug_len: null

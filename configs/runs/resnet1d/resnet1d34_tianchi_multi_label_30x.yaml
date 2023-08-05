@@ -1,0 +1,3 @@
+__base__:
+    - resnet1d34_tianchi_multi_label_1x.yaml
+    - ../../schedules/schedule_30x.yaml

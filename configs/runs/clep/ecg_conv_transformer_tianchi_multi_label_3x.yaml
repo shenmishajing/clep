@@ -1,0 +1,3 @@
+__base__:
+    - ecg_conv_transformer_tianchi_multi_label_1x.yaml
+    - ../../schedules/schedule_3x.yaml

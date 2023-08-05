@@ -70,9 +70,11 @@ data:
                     ann_file: ann/round_all/${split}.csv
                     data_root: data/tianchi
                     ecg_process_method: dwt
-                    total_record: True
+                    # total_record: false
+                    # data_size: 3072
+                    total_record: true
+                    data_size: 5024
                     around_period_num: 0
-                    data_size: null
                     wave_fliter: false
                     debug_len: null
         dataloader_cfg:

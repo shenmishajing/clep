@@ -8,7 +8,6 @@ model:
                     class_path: models.ResNet1DEncoder
                     init_args:
                         arch: res18
-                        num_classes: 3
                 transformer_encoder:
                     class_path: torch.nn.TransformerEncoder
                     init_args:

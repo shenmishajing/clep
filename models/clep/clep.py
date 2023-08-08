@@ -60,8 +60,9 @@ class CLEP(ECGTransformer):
         ).reshape(*x.shape[:2], self.cls_token_num, -1)
         return x
 
-    def calculate_pred(self, x, signal_name):
+    def calculate_pred(self, x, data):
         pred = []
+        signal_name = data["signal_name"]
         for batch_ind, leads in enumerate(signal_name):
             cur_pred = []
             for lead_ind, lead in enumerate(leads):

@@ -1,0 +1,16 @@
+optimizer_config:
+    optimizer:
+        class_path: torch.optim.Adam
+        init_args:
+            lr: 1e-4
+            weight_decay: 1e-6
+    lr_scheduler:
+        scheduler:
+            class_path: torch.optim.lr_scheduler.CosineAnnealingLR
+            init_args:
+                T_max: 60
+        warmup_config:
+            warmup_iters: 1656
+
+trainer:
+    max_epochs: 60

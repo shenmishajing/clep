@@ -57,6 +57,27 @@ __import__:
         - 非特异性室内传导延迟
         - 非特异性室内传导阻滞
         - 顺钟向转位
+    # num_classes: &num_classes 19
+    # labels: &labels
+    #     - QRS低电压
+    #     - ST-T改变
+    #     - ST段改变
+    #     - T波改变
+    #     - 临界ECG
+    #     - 右束支传导阻滞
+    #     - 完全性右束支传导阻滞
+    #     - 室性早搏
+    #     - 左心室高电压
+    #     - 异常ECG
+    #     - 心房颤动
+    #     - 房性早搏
+    #     - 正常ECG
+    #     - 电轴右偏
+    #     - 电轴左偏
+    #     - 窦性心动过缓
+    #     - 窦性心动过速
+    #     - 窦性心律
+    #     - 窦性心律不齐
 
 data:
     class_path: lightning_template.LightningDataModule
@@ -67,18 +88,19 @@ data:
             fit:
                 class_path: datasets.TianChiDataset
                 init_args:
+                    # class_names: ann/round_all/class_names_selected.txt
                     ann_file: ann/round_all/${split}.csv
                     data_root: data/tianchi
                     ecg_process_method: dwt
                     # total_record: false
                     # data_size: 3072
                     total_record: true
-                    data_size: null
+                    data_size: 5024
                     around_period_num: 0
                     wave_fliter: false
                     debug_len: null
         dataloader_cfg:
-            batch_size: 8
+            batch_size: 32
             num_workers: 4
             persistent_workers: true
             prefetch_factor: 2

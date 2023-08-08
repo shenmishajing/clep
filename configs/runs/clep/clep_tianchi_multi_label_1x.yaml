@@ -3,6 +3,7 @@ __base__:
     - ../../schedules/schedule_1x.yaml
     - ../../datasets/tianchi/tianchi_multi_label.yaml
     - ../../models/clep/clep_multi_label.yaml
+    - ../../datasets/tianchi/model_num_classes.yaml
 
 model:
     init_args:
@@ -10,4 +11,3 @@ model:
             init_args:
                 symbol_embedding_path: data/tianchi/symbols_chatgpt/symbol_embedding.pkl
                 signal_kind_num: 12
-                num_classes: 55

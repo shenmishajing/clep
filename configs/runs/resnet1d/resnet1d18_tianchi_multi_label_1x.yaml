@@ -3,9 +3,4 @@ __base__:
     - ../../schedules/schedule_1x.yaml
     - ../../datasets/tianchi/tianchi_multi_label.yaml
     - ../../models/resnet1d/resnet1d18_multi_label.yaml
-
-model:
-    init_args:
-        model:
-            init_args:
-                num_classes: 55
+    - ../../datasets/tianchi/model_num_classes.yaml

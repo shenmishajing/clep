@@ -1,0 +1,6 @@
+model:
+    init_args:
+        model:
+            init_args:
+                num_classes: 55
+                # num_classes: 19

@@ -5,6 +5,7 @@ from time import sleep
 
 import torch
 from openai import InvalidRequestError
+from tqdm import tqdm
 
 from datasets.tianchi.tianchi import TianChiDataset
 from utils import openai
@@ -34,11 +35,13 @@ def get_llm_results(messages, model="gpt-3.5-turbo", temperature=0):
 
 def get_symbol_raw_description(data_root, leads, symbols):
     if not os.path.exists(os.path.join(data_root, "symbol_description_raw.pkl")):
+        print("get symbol description raw")
         data = {}
-        for lead in leads:
+        for lead in tqdm(leads, desc="lead", position=0, leave=False):
             data[lead] = {}
-            for symbol, disease in symbols.items():
-                print(f"description lead: {lead}, symbol: {symbol}, disease: {disease}")
+            for symbol, disease in tqdm(
+                symbols.items(), desc="symbol", position=1, leave=False
+            ):
                 messages = [
                     {"role": "system", "content": "You are a helpful assistant."},
                     {
@@ -54,24 +57,27 @@ def get_symbol_raw_description(data_root, leads, symbols):
 
 
 def get_symbol_description(data_root):
+    print("get symbol description")
     data = pickle.load(
         open(os.path.join(data_root, "symbol_description_raw.pkl"), "rb")
     )
-    for lead in data:
-        for symbol in data[lead]:
+    for lead in tqdm(data, desc="lead", position=0, leave=False):
+        for symbol in tqdm(data[lead], desc="symbol", position=1, leave=False):
             data[lead][symbol] = data[lead][symbol]["choices"][0]["message"]["content"]
 
     json.dump(
         data,
         open(os.path.join(data_root, "symbol_description.json"), "w"),
         indent=4,
+        ensure_ascii=False,
     )
 
 
 def get_symbol_sentence(data_root):
+    print("get symbol sentence")
     data = json.load(open(os.path.join(data_root, "symbol_description.json")))
-    for lead in data:
-        for symbol in data[lead]:
+    for lead in tqdm(data, desc="lead", position=0, leave=False):
+        for symbol in tqdm(data[lead], desc="symbol", position=1, leave=False):
             res = {}
             sentences = data[lead][symbol].split("\n")
             for wave in ["P", "QRS", "T"]:
@@ -90,6 +96,7 @@ def get_symbol_sentence(data_root):
         data,
         open(os.path.join(data_root, "symbol_sentence.json"), "w"),
         indent=4,
+        ensure_ascii=False,
     )
 
 
@@ -107,11 +114,13 @@ def get_embedding(text, model="text-embedding-ada-002"):
 
 def get_symbol_raw_embedding(data_root):
     if not os.path.exists(os.path.join(data_root, "symbol_embedding_raw.pkl")):
+        print("get symbol raw embedding")
         data = json.load(open(os.path.join(data_root, "symbol_sentence.json")))
-        for lead in data:
-            for symbol in data[lead]:
-                for wave in data[lead][symbol]:
-                    print(f"embedding lead: {lead}, symbol: {symbol}, wave: {wave}")
+        for lead in tqdm(data, desc="lead", position=0, leave=False):
+            for symbol in tqdm(data[lead], desc="symbol", position=1, leave=False):
+                for wave in tqdm(
+                    data[lead][symbol], desc="wave", position=2, leave=False
+                ):
                     data[lead][symbol][wave] = get_embedding(data[lead][symbol][wave])
 
         pickle.dump(
@@ -120,11 +129,12 @@ def get_symbol_raw_embedding(data_root):
 
 
 def get_symbol_embedding(data_root):
+    print("get symbol embedding")
     data = pickle.load(open(os.path.join(data_root, "symbol_embedding_raw.pkl"), "rb"))
 
-    for lead in data:
-        for symbol in data[lead]:
-            for wave in data[lead][symbol]:
+    for lead in tqdm(data, desc="lead", position=0, leave=False):
+        for symbol in tqdm(data[lead], desc="symbol", position=1, leave=False):
+            for wave in tqdm(data[lead][symbol], desc="wave", position=2, leave=False):
                 data[lead][symbol][wave] = torch.tensor(
                     data[lead][symbol][wave]["data"][0]["embedding"]
                 )

@@ -1,4 +1,4 @@
-__base__: ./ecg_conv_transformer.yaml
+__base__: ../conv_transformer/conv_transformer.yaml
 
 model:
     init_args:

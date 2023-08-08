@@ -1,4 +1,4 @@
-__base__: ./ecg_transformer.yaml
+__base__: transformer.yaml
 
 model:
     init_args:

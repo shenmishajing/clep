@@ -2,4 +2,4 @@ __base__:
     - ../../default_runtime.yaml
     - ../../schedules/schedule_1x.yaml
     - ../../datasets/mit_bih/mit_bih.yaml
-    - ../../models/clep/ecg_conv_transformer.yaml
+    - ../../models/conv_transformer/conv_transformer.yaml

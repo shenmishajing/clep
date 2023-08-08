@@ -1,4 +1,4 @@
-__base__: ./conv_clep.yaml
+__base__: conv_clep.yaml
 
 model:
     init_args:

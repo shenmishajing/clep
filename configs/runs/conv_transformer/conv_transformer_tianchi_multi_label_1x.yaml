@@ -2,7 +2,7 @@ __base__:
     - ../../default_runtime.yaml
     - ../../schedules/schedule_1x.yaml
     - ../../datasets/tianchi/tianchi_multi_label.yaml
-    - ../../models/clep/ecg_transformer_multi_label.yaml
+    - ../../models/conv_transformer/conv_transformer_multi_label.yaml
     - ../../datasets/tianchi/model_num_classes.yaml
 
 model:

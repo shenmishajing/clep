@@ -4,11 +4,11 @@ model:
         model:
             class_path: models.ECGConvTransformer
             init_args:
-                conv_encoder:
+                conv:
                     class_path: models.ResNet1DEncoder
                     init_args:
                         arch: res18
-                transformer_encoder:
+                encoder:
                     class_path: torch.nn.TransformerEncoder
                     init_args:
                         encoder_layer:

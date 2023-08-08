@@ -4,7 +4,7 @@ model:
         model:
             class_path: models.ECGTransformer
             init_args:
-                ecg_encoder:
+                encoder:
                     class_path: torch.nn.TransformerEncoder
                     init_args:
                         encoder_layer:

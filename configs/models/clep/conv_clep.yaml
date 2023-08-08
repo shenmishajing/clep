@@ -1,0 +1,14 @@
+__base__: ./ecg_conv_transformer.yaml
+
+model:
+    init_args:
+        model:
+            class_path: models.ConvCLEP
+            init_args:
+                normalize_loss: false
+                symbols:
+                    - SVEB
+                    - VEB
+                    - F
+                symbol_embedding_dim: 1536
+                symbol_embedding_path: data/mit-bih-arrhythmia-database-1.0.0/symbols_chatgpt/symbol_embedding.pkl

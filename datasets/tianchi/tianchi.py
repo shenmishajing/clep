@@ -96,12 +96,10 @@ class TianChiDataset(CacheDataset):
             )
 
         if isinstance(class_names, str):
-            if os.path.exists(class_names):
-                with open(class_names, "r") as f:
-                    class_names = [line.strip() for line in f.readlines() if line]
-            else:
-                class_names = class_names.split(",")
-
+            if not os.path.exists(class_names):
+                class_names = os.path.join(self.data_root, class_names)
+            with open(class_names, "r") as f:
+                class_names = [line.strip() for line in f.readlines() if line]
         self.class_names = {name: i for i, name in enumerate(class_names)}
         self.ann = pd.read_csv(self.ann_file)
         self.ann["id"] = self.ann["id"].astype(str)

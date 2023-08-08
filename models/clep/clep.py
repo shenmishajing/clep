@@ -56,7 +56,7 @@ class CLEP(ECGTransformer):
         # b, c, w, d: batch_size, lead_num, cls_token_num, embedding_dim
         x = self.fc(
             # b * c, w, d: batch_size * lead_num, cls_token_num, embedding_dim
-            self.transformer_forward(x, attention_mask)[:, : self.cls_token_num]
+            self.encoder_forward(x, attention_mask)[:, : self.cls_token_num]
         ).reshape(*x.shape[:2], self.cls_token_num, -1)
         return x
 

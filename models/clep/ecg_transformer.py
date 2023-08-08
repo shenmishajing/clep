@@ -204,9 +204,9 @@ class ECGTransformer(nn.Module):
         )
 
     def extract_feat(self, x, attention_mask):
-        x = self.transformer_forward(x, attention_mask)[
-            :, : self.cls_token_num
-        ].reshape(*x.shape[:2], -1)
+        x = self.encoder_forward(x, attention_mask)[:, : self.cls_token_num].reshape(
+            *x.shape[:2], -1
+        )
         return x
 
     def calculate_pred(self, x, data):

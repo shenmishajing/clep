@@ -1,0 +1,3 @@
+__base__:
+    - resnet1d34_with_channel_tianchi_round_all_multi_label_1x.yaml
+    - ../../schedules/schedule_9x.yaml

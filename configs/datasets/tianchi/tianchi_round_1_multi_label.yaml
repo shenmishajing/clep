@@ -1,0 +1,17 @@
+__base__: tianchi_round_all_multi_label.yaml
+
+data:
+    init_args:
+        dataset_cfg:
+            fit:
+                init_args:
+                    ann_file: ann/round_1/${split}.csv
+
+trainer:
+    logger:
+        init_args:
+            tags:
+                pre_item:
+                    change_item:
+                        - - -1
+                          - round_1

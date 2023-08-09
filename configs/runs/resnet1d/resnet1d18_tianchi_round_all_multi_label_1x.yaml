@@ -1,6 +1,6 @@
 __base__:
     - ../../default_runtime.yaml
     - ../../schedules/schedule_1x.yaml
-    - ../../datasets/tianchi/tianchi_multi_label.yaml
+    - ../../datasets/tianchi/tianchi_round_all_multi_label.yaml
     - ../../models/resnet1d/resnet1d18_multi_label.yaml
-    - ../../datasets/tianchi/model_num_classes.yaml
+    - ../../datasets/tianchi/tianchi_round_all_model_num_classes.yaml

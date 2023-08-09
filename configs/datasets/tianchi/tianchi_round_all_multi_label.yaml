@@ -222,6 +222,7 @@ trainer:
                 pre_item:
                     - *task
                     - tianchi
+                    - round_all
     callbacks:
         change_item:
             - - 0

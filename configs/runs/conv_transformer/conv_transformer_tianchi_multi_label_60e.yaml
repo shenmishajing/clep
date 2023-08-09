@@ -1,3 +1,0 @@
-__base__:
-    - conv_transformer_tianchi_multi_label_1x.yaml
-    - ../../schedules/schedule_60e.yaml

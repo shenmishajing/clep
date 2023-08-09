@@ -1,0 +1,115 @@
+__import__:
+    num_classes: &num_classes 34
+    labels: &labels
+        - QRS低电压
+        - ST-T改变
+        - ST段改变
+        - T波改变
+        - 一度房室传导阻滞
+        - 下壁异常Q波
+        - 不完全性右束支传导阻滞
+        - 前间壁R波递增不良
+        - 右心房扩大
+        - 右束支传导阻滞
+        - 完全性右束支传导阻滞
+        - 完全性左束支传导阻滞
+        - 室性早搏
+        - 左前分支传导阻滞
+        - 左心室高电压
+        - 左束支传导阻滞
+        - 心房颤动
+        - 快心室率
+        - 房性早搏
+        - 早期复极化
+        - 电轴右偏
+        - 电轴左偏
+        - 短PR间期
+        - 窦性心动过缓
+        - 窦性心动过速
+        - 窦性心律
+        - 窦性心律不齐
+        - 融合波
+        - 起搏心律
+        - 逆钟向转位
+        - 非特异性ST段与T波异常
+        - 非特异性ST段异常
+        - 非特异性T波异常
+        - 顺钟向转位
+
+__base__: tianchi_round_all_multi_label.yaml
+
+data:
+    init_args:
+        dataset_cfg:
+            fit:
+                init_args:
+                    ann_file: ann/round_2/${split}.csv
+
+model:
+    init_args:
+        evaluator_cfg:
+            init_args:
+                metrics:
+                    acc:
+                        init_args:
+                            num_labels: *num_classes
+                    F1:
+                        init_args:
+                            num_labels: *num_classes
+                    percision:
+                        init_args:
+                            num_labels: *num_classes
+                    recall:
+                        init_args:
+                            num_labels: *num_classes
+                    PR-AUC:
+                        init_args:
+                            num_labels: *num_classes
+                    ROC-AUC:
+                        init_args:
+                            num_labels: *num_classes
+                    acc_classwise:
+                        init_args:
+                            labels: *labels
+                            metric:
+                                init_args:
+                                    num_labels: *num_classes
+                    F1_classwise:
+                        init_args:
+                            labels: *labels
+                            metric:
+                                init_args:
+                                    num_labels: *num_classes
+                    percision_classwise:
+                        init_args:
+                            labels: *labels
+                            metric:
+                                init_args:
+                                    num_labels: *num_classes
+                    recall_classwise:
+                        init_args:
+                            labels: *labels
+                            metric:
+                                init_args:
+                                    num_labels: *num_classes
+                    PR-AUC_classwise:
+                        init_args:
+                            labels: *labels
+                            metric:
+                                init_args:
+                                    num_labels: *num_classes
+                    ROC-AUC_classwise:
+                        init_args:
+                            labels: *labels
+                            metric:
+                                init_args:
+                                    num_labels: *num_classes
+
+trainer:
+    logger:
+        init_args:
+            tags:
+                pre_item:
+                    change_item:
+                        - - -1
+                          - round_2

@@ -22,6 +22,15 @@ class ECGConvTransformer(ECGTransformer):
         self.conv = conv
 
     def calculate_x(self, data):
+        x = data["signal"]
+        batch_size, single_num = x.shape[:2]
+        x = x.reshape(batch_size * single_num, -1, self.conv.conv1.in_channels).mT
+
+        x = self.conv.extract_feat(x)
+
+        return x.reshape(batch_size, single_num, *x.shape[-2:]).mT
+
+
 class ECGConvTransformerWithChannel(ECGConvTransformer):
     def calculate_x(self, data):
         x = data["signal"]

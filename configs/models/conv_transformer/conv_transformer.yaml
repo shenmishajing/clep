@@ -5,9 +5,10 @@ model:
             class_path: models.ECGConvTransformer
             init_args:
                 conv:
-                    class_path: models.ResNet1DEncoder
+                    class_path: models.ResNet1D
                     init_args:
                         arch: res18
+                        num_classes: null
                 encoder:
                     class_path: torch.nn.TransformerEncoder
                     init_args:

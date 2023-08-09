@@ -202,7 +202,9 @@ class ResNet1D(nn.Module):
             ]
         )
         self.avgpool = nn.AdaptiveAvgPool1d((1))
-        self.fc = nn.Linear((2 ** (len(layers) + 5)) * block.expansion, num_classes)
+
+        if num_classes is not None:
+            self.fc = nn.Linear((2 ** (len(layers) + 5)) * block.expansion, num_classes)
 
         for m in self.modules():
             if isinstance(m, nn.Conv1d):
@@ -286,12 +288,14 @@ class ResNet1D(nn.Module):
         x = self.fc(x)
         return x
 
-    def forward(self, data):
-        x = data["signal"].mT
+    def calculate_x(self, data):
+        return data["signal"].mT
 
+    def forward(self, data):
+        x = self.calculate_x(data)
         pred = (
             self._forward_impl(x.reshape(-1, *x.shape[-2:]))
-            .reshape(*x.shape[:2], -1)
+            .reshape(*x.shape[:-2], -1)
             .mT
         )
 
@@ -306,16 +310,9 @@ class ResNet1D(nn.Module):
         return {"log_dict": {"loss": loss}, "pred": pred, "target": target}
 
 
-class ResNet1DEncoder(ResNet1D):
-    def __init__(self, *args, **kwargs) -> None:
-        super().__init__(*args, **kwargs)
-        self.fc = None
-
-    def forward(self, x):
-        # See note [TorchScript super()]
-        batch_size, single_num = x.shape[:2]
-        x = x.reshape(batch_size * single_num, -1, self.conv1.in_channels).mT
-
-        x = self.extract_feat(x)
-
-        return x.reshape(batch_size, single_num, *x.shape[-2:]).mT
+class ResNet1DWithChannel(ResNet1D):
+    def calculate_x(self, data):
+        x = data["signal"]
+        x = x.reshape(*x.shape[:-2], -1)
+        x = x[:, None]
+        return x

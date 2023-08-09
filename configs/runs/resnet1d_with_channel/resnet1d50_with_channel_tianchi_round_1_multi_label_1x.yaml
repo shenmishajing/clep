@@ -1,0 +1,6 @@
+__base__:
+    - ../../default_runtime.yaml
+    - ../../schedules/schedule_1x.yaml
+    - ../../datasets/tianchi/tianchi_round_1_multi_label.yaml
+    - ../../models/resnet1d_with_channel/resnet1d50_with_channel_multi_label.yaml
+    - ../../datasets/tianchi/tianchi_round_1_model_num_classes.yaml

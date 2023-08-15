@@ -44,7 +44,7 @@ class ECGTransformer(nn.Module):
 
         self.encoder = encoder
 
-        embedding_dim_factor = 1
+        self.embedding_dim_factor = 1
 
         if token_embedding_enable:
             self.token_embedding = nn.Linear(token_size, embedding_dim)
@@ -52,24 +52,24 @@ class ECGTransformer(nn.Module):
         if wave_embedding_enable:
             self.wave_embedding = nn.Linear(wave_kind_num, embedding_dim)
             if concat_embedding:
-                embedding_dim_factor += 1
+                self.embedding_dim_factor += 1
 
         if signal_embedding_enable:
             self.signal_embedding = nn.Embedding(signal_kind_num, embedding_dim)
             if concat_embedding:
-                embedding_dim_factor += 1
+                self.embedding_dim_factor += 1
 
         if pos_embedding_enable and concat_embedding:
-            embedding_dim_factor += 1
-
-        if not fc_per_cls_token:
-            embedding_dim_factor *= self.cls_token_num
-
-        self.embedding_dim_factor = embedding_dim_factor
+            self.embedding_dim_factor += 1
 
         self.cls_tokens = nn.Parameter(torch.empty(self.cls_token_num, embedding_dim))
 
-        self.fc = nn.Linear(embedding_dim_factor * embedding_dim, num_classes)
+        self.fc = nn.Linear(
+            self.embedding_dim_factor
+            * embedding_dim
+            * (1 if fc_per_cls_token else self.cls_token_num),
+            num_classes,
+        )
 
         if multi_label:
             self.loss = nn.BCELoss()

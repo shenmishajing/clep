@@ -2,7 +2,7 @@ optimizer_config:
     optimizer:
         class_path: torch.optim.AdamW
         init_args:
-            lr: 1e-4
+            lr: 5e-5
             weight_decay: 1e-2
     lr_scheduler:
         scheduler:
@@ -10,7 +10,7 @@ optimizer_config:
             init_args:
                 milestones: [8, 11]
         warmup_config:
-            warmup_iters: 500
+            warmup_iters: 1656
 
 trainer:
     max_epochs: 12

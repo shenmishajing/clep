@@ -3,6 +3,7 @@ import os
 import pickle
 from time import sleep
 
+import pandas as pd
 import torch
 from openai import InvalidRequestError
 from tqdm import tqdm
@@ -33,7 +34,7 @@ def get_llm_results(messages, model="gpt-3.5-turbo", temperature=0):
             sleep(try_num * 60)
 
 
-def get_symbol_raw_description(data_root, leads, symbols):
+def get_symbol_raw_description_per_wave(data_root, leads, symbols):
     if not os.path.exists(os.path.join(data_root, "symbol_description_raw.pkl")):
         print("get symbol description raw")
         data = {}
@@ -56,7 +57,7 @@ def get_symbol_raw_description(data_root, leads, symbols):
         )
 
 
-def get_symbol_description(data_root):
+def get_symbol_description_per_wave(data_root):
     print("get symbol description")
     data = pickle.load(
         open(os.path.join(data_root, "symbol_description_raw.pkl"), "rb")
@@ -73,7 +74,7 @@ def get_symbol_description(data_root):
     )
 
 
-def get_symbol_sentence(data_root):
+def get_symbol_sentence_per_wave(data_root):
     print("get symbol sentence")
     data = json.load(open(os.path.join(data_root, "symbol_description.json")))
     for lead in tqdm(data, desc="lead", position=0, leave=False):
@@ -112,7 +113,7 @@ def get_embedding(text, model="text-embedding-ada-002"):
             sleep((try_num + 10) * 60)
 
 
-def get_symbol_raw_embedding(data_root):
+def get_symbol_raw_embedding_per_wave(data_root):
     if not os.path.exists(os.path.join(data_root, "symbol_embedding_raw.pkl")):
         print("get symbol raw embedding")
         data = json.load(open(os.path.join(data_root, "symbol_sentence.json")))
@@ -128,7 +129,7 @@ def get_symbol_raw_embedding(data_root):
         )
 
 
-def get_symbol_embedding(data_root):
+def get_symbol_embedding_per_wave(data_root):
     print("get symbol embedding")
     data = pickle.load(open(os.path.join(data_root, "symbol_embedding_raw.pkl"), "rb"))
 
@@ -142,10 +143,63 @@ def get_symbol_embedding(data_root):
     pickle.dump(data, open(os.path.join(data_root, "symbol_embedding.pkl"), "wb"))
 
 
+def get_symbol_per_wave(info):
+    get_symbol_raw_description_per_wave(
+        info["data_root"], info["leads"], info["symbols"]
+    )
+    get_symbol_description_per_wave(info["data_root"])
+    get_symbol_sentence_per_wave(info["data_root"])
+    get_symbol_raw_embedding_per_wave(info["data_root"])
+    get_symbol_embedding_per_wave(info["data_root"])
+
+
+def get_symbol_raw_description(data_root, symbols):
+    if not os.path.exists(os.path.join(data_root, "symbol_description_raw.pkl")):
+        print("get symbol description raw")
+        data = {}
+        for symbol, disease in tqdm(symbols.items(), desc="symbol"):
+            messages = [
+                {"role": "system", "content": "You are a helpful assistant."},
+                {
+                    "role": "user",
+                    "content": f"What does an ecg look like for a patient with {disease}? Please describe it in all relevant aspects, including but not limited to P wave, QRS wave, T wave, hearte rate and all other related aspects, respectively.",
+                },
+            ]
+            data[symbol] = get_llm_results(messages)
+
+        pickle.dump(
+            data, open(os.path.join(data_root, "symbol_description_raw.pkl"), "wb")
+        )
+
+
+def get_symbol_description(data_root):
+    print("get symbol description")
+    data = pickle.load(
+        open(os.path.join(data_root, "symbol_description_raw.pkl"), "rb")
+    )
+    for symbol in tqdm(data, desc="symbol"):
+        data[symbol] = (
+            data[symbol]["choices"][0]["message"]["content"]
+            + f" This ecg contains disease {symbol}."
+        )
+
+    json.dump(
+        data,
+        open(os.path.join(data_root, "symbol_description.json"), "w"),
+        indent=4,
+        ensure_ascii=False,
+    )
+
+
+def get_symbol(info):
+    get_symbol_raw_description(info["data_root"], info["symbols"])
+    get_symbol_description(info["data_root"])
+
+
 def main():
     data_info = {
-        "mit-bih": {
-            "data_root": "data/mit-bih-arrhythmia-database-1.0.0/symbols_chatgpt",
+        "mit-bih_per_wave": {
+            "data_root": "data/mit-bih-arrhythmia-database-1.0.0/symbols_chatgpt_per_wave",
             "leads": ["MLII", "V1", "V2", "V4", "V5"],
             "symbols": {
                 "N": "Normal beat",
@@ -182,18 +236,27 @@ def main():
             #     # "|": "Isolated QRS-like artifact",
             # },
         },
+        "tianchi_per_wave": {
+            "data_root": "data/tianchi/symbols_chatgpt_per_wave",
+            "leads": TianChiDataset.SignalNames,
+            "symbols": None,
+        },
         "tianchi": {
             "data_root": "data/tianchi/symbols_chatgpt",
             "leads": TianChiDataset.SignalNames,
             "symbols": None,
+            "func": get_symbol,
         },
     }
 
-    with open("data/tianchi/ann/round_all/class_names.txt") as f:
-        class_names = [line.strip() for line in f.readlines() if line]
-        data_info["tianchi"]["symbols"] = {
-            class_name: class_name for class_name in class_names
-        }
+    data = pd.read_csv("data/tianchi/ann/round_all/all.csv")
+
+    data_info["tianchi_per_wave"]["symbols"] = data_info["tianchi"]["symbols"] = {
+        d: d.replace("_", ", ") for d in set(data["disease"])
+    }
+
+    for name in data_info:
+        data_info[name].setdefault("func", get_symbol_per_wave)
 
     names = ["tianchi"]
 
@@ -204,11 +267,7 @@ def main():
         print(f"process {name}")
 
         os.makedirs(info["data_root"], exist_ok=True)
-        get_symbol_raw_description(info["data_root"], info["leads"], info["symbols"])
-        get_symbol_description(info["data_root"])
-        get_symbol_sentence(info["data_root"])
-        get_symbol_raw_embedding(info["data_root"])
-        get_symbol_embedding(info["data_root"])
+        info["func"](info)
 
 
 if __name__ == "__main__":

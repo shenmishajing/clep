@@ -1,0 +1,29 @@
+model:
+    class_path: lightning_template.LightningModule
+    init_args:
+        model:
+            class_path: models.ECGConvTransformerLanguageModel
+            init_args:
+                conv:
+                    class_path: models.ResNet1D
+                    init_args:
+                        arch: res18
+                        num_classes: null
+                encoder:
+                    class_path: torch.nn.TransformerEncoder
+                    init_args:
+                        encoder_layer:
+                            class_path: torch.nn.TransformerEncoderLayer
+                            init_args:
+                                d_model: 512
+                                nhead: 16
+                                activation: relu
+                                batch_first: true
+                        num_layers: 2
+                token_size: 32
+                wave_kind_num: 3
+                signal_kind_num: 5
+                wave_num_cls_token: false
+                embedding_dim: 512
+                num_classes: 3
+                multi_label: false

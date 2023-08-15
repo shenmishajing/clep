@@ -18,6 +18,7 @@ def parse_args():
     parser.add_argument(
         "--method", default="dwt", help="method to delineate the ECG sign"
     )
+    parser.add_argument("--debug-len", default=None, help="debug max length")
 
     args = parser.parse_args()
 
@@ -30,6 +31,7 @@ def main():
         ann_file=args.ann_file,
         data_root=args.data_root,
         ecg_process_method=args.method,
+        debug_len=args.debug_len,
     ).full_init()
 
 

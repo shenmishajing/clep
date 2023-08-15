@@ -13,6 +13,9 @@ warnings.filterwarnings("ignore")
 def main():
     data_path = "data/tianchi"
 
+    general_columns = ["id", "age", "gender"]
+    disease_columns = ["f3", "f4", "f5", "f6", "f7", "f8", "f9", "f10", "f11"]
+
     for round in [1, 2, "all"]:
         output_path = os.path.join(data_path, f"ann/round_{round}")
         analyze_path = os.path.join(data_path, f"analyze/round_{round}")
@@ -24,24 +27,12 @@ def main():
             pd.read_csv(
                 os.path.join(data_path, f"raw/hf_round{r}_label.txt"),
                 sep="\t",
-                names=[
-                    "id",
-                    "age",
-                    "gender",
-                    "f3",
-                    "f4",
-                    "f5",
-                    "f6",
-                    "f7",
-                    "f8",
-                    "f9",
-                    "f10",
-                    "f11",
-                ],
+                names=general_columns + disease_columns,
             )
             for r in round_list
         ]
         data = pd.concat(data).reset_index(drop=True)
+        data["disease"] = 0
 
         class_names = set()
         for r in round_list:
@@ -73,11 +64,12 @@ def main():
 
         for i in tqdm(range(data.shape[0])):
             dises = set(data.iloc[i, 3:12].unique())
+            dises = sorted([d for d in dises if isinstance(d, str)])
             for d in dises:
-                if isinstance(d, str):
-                    data.loc[i, d] = 1
+                data.loc[i, d] = 1
+            data.loc[i, "disease"] = "_".join(dises)
         data["id"] = data["id"].apply(lambda x: x.removesuffix(".txt"))
-        data = data[["id", "age", "gender"] + class_names]
+        data = data[general_columns + ["disease"] + class_names]
         data.to_csv(os.path.join(output_path, "all.csv"), index=False)
         data_train, data_val = train_test_split(data, test_size=0.2)
         data_train.to_csv(os.path.join(output_path, "train.csv"), index=False)

@@ -1,3 +1,4 @@
+import json
 import os
 import pickle
 from collections import OrderedDict, deque
@@ -7,6 +8,7 @@ import numpy as np
 import pandas as pd
 import torch
 from tqdm import tqdm
+from transformers import AutoTokenizer
 
 from datasets.utils.ecg_utils import calculate_wave_ann
 
@@ -51,6 +53,8 @@ class TianChiDataset(CacheDataset):
         total_record=True,
         wave_fliter=True,
         ecg_process_method="dwt",
+        tokenizer="openlm-research/open_llama_3b",
+        description_max_length=768,
         debug_len=None,
         **kwargs,
     ):
@@ -63,10 +67,15 @@ class TianChiDataset(CacheDataset):
         )
         self.wave_fliter = wave_fliter
         self.ecg_process_method = ecg_process_method
+        self.description_max_length = description_max_length
         self.debug_len = debug_len
 
         if data_prefix is None:
-            data_prefix = dict(data_path="ecg", cache_path="cache")
+            data_prefix = dict(
+                data_path="ecg",
+                cache_path="cache",
+                symbol_path="symbols_chatgpt/symbol_description.json",
+            )
 
         super().__init__(data_prefix=data_prefix, **kwargs)
 
@@ -103,16 +112,31 @@ class TianChiDataset(CacheDataset):
         self.class_names = {name: i for i, name in enumerate(class_names)}
         self.ann = pd.read_csv(self.ann_file)
         self.ann["id"] = self.ann["id"].astype(str)
-        self.ann = self.ann[["id"] + class_names]
 
         self.name_list = self.ann["id"].to_list()
         if self.debug_len is not None:
             self.name_list = self.name_list[: self.debug_len]
-        self.ann = self.ann.set_index("id").to_dict("split")
-        self.ann = {
-            ind: torch.tensor(data, dtype=torch.int32)
-            for ind, data in zip(self.ann["index"], self.ann["data"])
+
+        self.ann_id_to_disease_name = {
+            i: disease for i, disease in zip(self.ann["id"], self.ann["disease"])
         }
+
+        self.ann_id_to_labels = self.ann[["id"] + class_names]
+        self.ann_id_to_labels = self.ann_id_to_labels.set_index("id").to_dict("split")
+        self.ann_id_to_labels = {
+            ind: torch.tensor(data, dtype=torch.int32)
+            for ind, data in zip(
+                self.ann_id_to_labels["index"], self.ann_id_to_labels["data"]
+            )
+        }
+
+        self.symbols = json.load(open(self.data_prefix["symbol_path"], "r"))
+        tokenizer = AutoTokenizer.from_pretrained(tokenizer)
+        self.symbols = {
+            k: tokenizer(v, return_tensors="pt")["input_ids"][0]
+            for k, v in self.symbols.items()
+        }
+        del tokenizer
 
         self.full_init()
 
@@ -234,6 +258,19 @@ class TianChiDataset(CacheDataset):
             )
         )
 
+        description = self.symbols[self.ann_id_to_labels[name]]
+        description_attention_mask = description.new_ones(
+            (self.description_max_length,), dtype=torch.int32
+        )
+        description_attention_mask[description.shape[0] :] = 0
+        description = torch.cat(
+            [
+                description,
+                description.new_zeros(
+                    self.description_max_length - description.shape[0]
+                ),
+            ]
+        )
         data_list = []
 
         if self.total_record:
@@ -292,7 +329,9 @@ class TianChiDataset(CacheDataset):
                     "signal_embedding": signal_embedding,
                     "peak_position": peak_position,
                     "wave_embedding": wave_embedding,
-                    "target": self.ann[name],
+                    "target": self.ann_id_to_labels[name],
+                    "description": description,
+                    "description_attention_mask": description_attention_mask,
                 }
             )
         else:
@@ -356,7 +395,9 @@ class TianChiDataset(CacheDataset):
                         "signal_embedding": signal_embedding,
                         "peak_position": peak_position,
                         "wave_embedding": wave_embedding,
-                        "target": self.ann[name],
+                        "target": self.ann_id_to_labels[name],
+                        "description_input": self.symbols[name],
+                        "description_attention_mask": description_attention_mask,
                     }
                 )
 

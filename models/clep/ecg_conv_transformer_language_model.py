@@ -1,15 +1,14 @@
 import torch
 from transformers import AutoModelForCausalLM, AutoTokenizer
 
-from .ecg_conv_transformer import (ECGConvTransformer,
-                                   ECGConvTransformerWithChannel)
+from .ecg_conv_transformer import ECGConvTransformer, ECGConvTransformerWithChannel
 
 
 class ECGConvTransformerLanguageModel(ECGConvTransformer):
     def __init__(
         self,
-        description_dim=3200,
-        description_model="openlm-research/open_llama_3b",
+        description_dim=2048,
+        description_model="Deci/DeciCoder-1b",
         *args,
         **kwargs
     ):

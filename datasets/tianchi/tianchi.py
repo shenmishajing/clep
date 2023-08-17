@@ -53,8 +53,8 @@ class TianChiDataset(CacheDataset):
         total_record=True,
         wave_fliter=True,
         ecg_process_method="dwt",
-        tokenizer="openlm-research/open_llama_3b",
-        description_max_length=768,
+        tokenizer="Deci/DeciCoder-1b",
+        description_max_length=1024,
         debug_len=None,
         **kwargs,
     ):
@@ -258,7 +258,7 @@ class TianChiDataset(CacheDataset):
             )
         )
 
-        description = self.symbols[self.ann_id_to_labels[name]]
+        description = self.symbols[self.ann_id_to_disease_name[name]]
         description_attention_mask = description.new_ones(
             (self.description_max_length,), dtype=torch.int32
         )

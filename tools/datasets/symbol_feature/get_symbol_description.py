@@ -162,7 +162,7 @@ def get_symbol_raw_description(data_root, symbols):
                 {"role": "system", "content": "You are a helpful assistant."},
                 {
                     "role": "user",
-                    "content": f"What does an ecg look like for a patient with {disease}? Please describe it in all relevant aspects, including but not limited to P wave, QRS wave, T wave, hearte rate and all other related aspects, respectively.",
+                    "content": f"What does an ecg look like for a patient with {disease} simultaneously? Please describe it in all relevant aspects, including but not limited to P wave, QRS wave, T wave, hearte rate and all other related aspects, respectively. Answer this in English.",
                 },
             ]
             data[symbol] = get_llm_results(messages)
@@ -253,6 +253,18 @@ def main():
 
     data_info["tianchi_per_wave"]["symbols"] = data_info["tianchi"]["symbols"] = {
         d: d.replace("_", ", ") for d in set(data["disease"])
+    }
+
+    data = [
+        ("ST段改变_一度房室传导阻滞_二联律_室性早搏_左心室肥大_窦性心律", 2059),
+        ("QRS低电压_T波改变_室性早搏_心房颤动_快心室率_起搏心律", 1372),
+        ("QRS低电压_T波改变_一度房室传导阻滞_房性早搏_窦性心律", 1287),
+        ("右束支传导阻滞_完全性右束支传导阻滞_左前分支传导阻滞_房性早搏_窦性心动过速", 903),
+        ("右束支传导阻滞_完全性右束支传导阻滞_左心室高电压_房性早搏_窦性心动过速", 874),
+    ]
+    data = [d[0] for d in data]
+    data_info["tianchi_per_wave"]["symbols"] = data_info["tianchi"]["symbols"] = {
+        d: d.replace("_", ", ") for d in data
     }
 
     for name in data_info:

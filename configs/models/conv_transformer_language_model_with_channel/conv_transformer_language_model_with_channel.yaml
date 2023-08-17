@@ -25,5 +25,6 @@ model:
                 signal_kind_num: 5
                 wave_num_cls_token: false
                 embedding_dim: 512
+                signal_embedding_enable: false
                 num_classes: 3
                 multi_label: false

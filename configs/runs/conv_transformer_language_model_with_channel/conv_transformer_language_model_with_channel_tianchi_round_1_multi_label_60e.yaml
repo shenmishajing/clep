@@ -1,7 +1,7 @@
 __base__:
     - ../../default_runtime.yaml
     - ../../schedules/schedule_60e.yaml
-    - ../../datasets/tianchi/tianchi_round_1_multi_label.yaml
+    - ../../datasets/tianchi/tianchi_round_1_language_model_multi_label.yaml
     - ../../models/conv_transformer_language_model_with_channel/conv_transformer_language_model_with_channel_multi_label.yaml
     - ../../datasets/tianchi/tianchi_round_1_model_num_classes.yaml
 
@@ -9,4 +9,7 @@ model:
     init_args:
         model:
             init_args:
+                conv:
+                    init_args:
+                        in_channels: 12
                 signal_kind_num: 12
